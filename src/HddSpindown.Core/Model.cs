@@ -130,7 +130,7 @@ namespace HddSpindown.Core {
   public string UpdatedUtc {get;set;}
   public string StandbyUtc {get;set;}
  }
- // Conservative draft values from the production concept (section 9). They are
+ // Conservative default values against rapid start/stop cycles. They are
  // product rules, not manufacturer guarantees, and are applied per device.
  public sealed class PowerPolicy {
   public TimeSpan MinimumRuntime {get;set;}

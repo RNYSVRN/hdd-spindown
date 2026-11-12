@@ -4,7 +4,7 @@ using HddSpindown.Windows;
 
 namespace HddSpindown.Service {
  // SCM failure actions: restart after 5 s, 30 s, 120 s, then explicitly no further
- // action, so Windows does not repeat the last restart forever (concept section 4).
+ // action, so Windows does not repeat the last restart forever.
  static class ServiceRecovery {
   [StructLayout(LayoutKind.Sequential)] struct ScAction { public int Type; public uint Delay; }
   [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)] struct FailureActions { public uint ResetPeriod; public string RebootMsg; public string Command; public uint Count; public IntPtr Actions; }

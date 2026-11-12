@@ -3,8 +3,6 @@
 **Put internal SATA data HDDs to sleep on Windows 10/11 – safely, and keep them asleep.**
 [Deutsche Version](README.de.md)
 
-<a href='https://ko-fi.com/D3U62AJLQD' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi3.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
-
 HDD Spindown locks all volumes of a selected HDD, removes its drive letters from *This PC* and sends ATA STANDBY IMMEDIATE. While the drive is paused, Explorer, indexers and ordinary programs cannot touch it, so it is not woken up again every few minutes. **Release** gives every HDD exactly the same drive letters back.
 
 A **Windows service** holds the locks. You can close the window, sign out or exit the app – paused HDDs stay paused. After a service crash, a restart or a power failure the service restores the original drive letters at the next start, based on a write-ahead journal. Drive letters that are in use are never overwritten.
@@ -48,7 +46,7 @@ Not supported (shown with the reason, SSD/NVMe hidden): SSD/NVMe, USB, RAID/Stor
 
 ## How it stays safe
 
-The rules from the [production concept](docs/PRODUKTIONSKONZEPT.md) (German) are enforced in the core:
+These rules are enforced in the core:
 
 - No standby without a successful lock of **all** volumes of the drive; nothing is closed or dismounted by force.
 - No drive letter is removed before its restore data is durably written (two SHA-256-checked copies, intent records before every external step).
@@ -99,7 +97,7 @@ Translations: German source text is the key; English lives in `src/HddSpindown.C
 - Not code-signed yet. No maintenance locks for running backups/SMART tests yet.
 - **Not a substitute for a backup.** No guarantees about drive lifetime.
 
-Test details: [docs/TEST-REPORT.md](docs/TEST-REPORT.md) (German). Changes: [CHANGELOG.md](CHANGELOG.md).
+Changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Support
 

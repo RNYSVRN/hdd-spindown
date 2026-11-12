@@ -282,7 +282,7 @@ namespace HddSpindown.Core {
    lock(gate) { try { CheckPolicy(store.Read(),deviceId); return null; } catch(PolicyException ex) { return ex.Message; } }
   }
   // After resume: the motor state is unknown again. Locks that can no longer be
-  // proven valid lead back to the original availability (concept section 8).
+  // proven valid lead back to the original availability.
   public OperationException[] Revalidate() {
    lock(gate) {
     Ready();

@@ -2,15 +2,13 @@
 
 [English version](README.md)
 
-<a href='https://ko-fi.com/D3U62AJLQD' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi3.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
-
 ![HDD Spindown – Hauptfenster](docs/screenshot.png)
 
 Stand: 12. November 2026 · Version 1.1.0 (Release-Kandidat) · **Noch keine Produktivfreigabe:** Hardwarequalifikation und Pilotbetrieb stehen aus (siehe unten).
 
 HDD Spindown sperrt interne SATA-Daten-HDDs, entfernt ihre Laufwerksbuchstaben aus „Dieser PC“ und fordert Standby an. Ab 1.0 hält ein **Windows-Dienst** die Sperren. Die Oberfläche kann geschlossen werden, abstürzen oder der Benutzer kann sich abmelden – pausierte HDDs bleiben pausiert. Nach Dienstabsturz, Neustart oder Stromausfall stellt der Dienst beim nächsten Start die ursprüngliche Verfügbarkeit wieder her.
 
-Grundlage ist das [Produktionskonzept](docs/PRODUKTIONSKONZEPT.md); die Sicherheitsregeln aus Abschnitt 3 sind unverändert umgesetzt.
+Feste Sicherheitsregeln im Kern: kein Standby ohne Sperre aller Volumes, keine Änderung ohne vorher gespeicherte Wiederherstellungsdaten, keine erzwungenen Aushängungen, kein Überschreiben belegter Laufwerksbuchstaben.
 
 ## Installation
 
@@ -45,7 +43,7 @@ Jede HDD erscheint als Karte mit drei getrennten Angaben:
 - **Schlafen**: sperrt alle Volumes, entfernt die Laufwerksbuchstaben, sendet ATA STANDBY IMMEDIATE. Dateien und Programme auf der HDD müssen geschlossen sein – es wird nichts zwangsweise geschlossen oder ausgehängt.
 - **Freigeben**: löst die Sperren und ordnet dieselben Buchstaben denselben Volumes zu. Belegte Buchstaben werden nie überschrieben.
 - **Alle freigeben**: nacheinander mit 5 s Abstand, damit nicht alle HDDs gleichzeitig anlaufen.
-- **Schonregeln** (Entwurfswerte aus Konzept Abschnitt 9, keine Herstellergarantie): mindestens 30 Minuten Laufzeit nach einer Freigabe, höchstens 4 Standby-Anforderungen je HDD in 24 Stunden. Die Restzeit wird an der Karte angezeigt.
+- **Schonregeln** (vorsichtige Richtwerte, keine Herstellergarantie): mindestens 30 Minuten Laufzeit nach einer Freigabe, höchstens 4 Standby-Anforderungen je HDD in 24 Stunden. Die Restzeit wird an der Karte angezeigt.
 - **Hilfe** (Menü „…“ oder F1): eingebaute Anleitung zu Funktionen, Statusanzeigen, Schonregeln, Sonderfällen, unterstützten HDDs und Recovery (mit kopierbaren Befehlen).
 - **Diagnose** (Menü „…“): Zustand des Dienstes, aller HDDs und offener Vorgänge; Seriennummern gekürzt.
 
@@ -109,14 +107,14 @@ powershell -ExecutionPolicy Bypass -File .\Build.ps1                    # Kern-T
 powershell -ExecutionPolicy Bypass -File .\Build.ps1 -IntegrationTests  # zusätzlich VHD-Tests (UAC)
 ```
 
-Ergebnis: `out\HDD-Spindown-<Version>-Setup.exe`, `out\HDD-Spindown-<Version>-x64.msi` und `out\SHA256SUMS.txt`. Der Build prüft vorher, ob alle Texte übersetzt sind (`tools\Check-Localization.ps1`). Details zu den Tests: [docs/TEST-REPORT.md](docs/TEST-REPORT.md).
+Ergebnis: `out\HDD-Spindown-<Version>-Setup.exe`, `out\HDD-Spindown-<Version>-x64.msi` und `out\SHA256SUMS.txt`. Der Build prüft vorher, ob alle Texte übersetzt sind (`tools\Check-Localization.ps1`).
 
 ## Offen bis zur Produktivfreigabe
 
 - **Hardwarequalifikation (P1.1):** ATA-Standby, Freigabe und Aufwachverhalten an den echten HDD-Modellen und Controllern prüfen. Die Schonregeln sind generische Entwurfswerte; modellbezogene Profile fehlen.
 - **Pilot (P1.3):** beaufsichtigter Betrieb, danach mindestens sieben Tage unter realistischer Last.
 - **Signatur:** Setup, MSI und EXE sind unsigniert (SmartScreen-Hinweis beim Download); dafür wird ein Code-Signing-Zertifikat benötigt.
-- **Wartungssperren** für laufende Backups/SMART-Tests (Konzept Abschnitt 9) und eine Erkennung unerwarteten Aufwachens sind nicht umgesetzt.
+- **Wartungssperren** für laufende Backups/SMART-Tests und eine Erkennung unerwarteten Aufwachens sind nicht umgesetzt.
 - Unabhängige Prüfung der Gerätezugriffe und der Recovery-Logik.
 
 Das Tool ersetzt kein Backup, verhindert keine mechanischen Defekte und sagt keine Lebensdauer zu.

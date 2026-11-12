@@ -15,7 +15,7 @@
 
 ## 1.0.0 – 2026-11-12
 
-- Production architecture per the concept: Windows service holds the locks, WinUI 3 app without admin rights, local named pipe with ACL and caller check.
+- New architecture: Windows service holds the locks, WinUI 3 app without admin rights, local named pipe with ACL and caller check.
 - Windows adapter: device identity, GPT layout, volume mapping, exclusion of system/boot/page-file/encrypted/SSD disks, volume locks, mount manager, ATA STANDBY IMMEDIATE.
 - Durable journal with two checksummed copies, recovery at service start, retry for drives that were missing, resume revalidation, protection rules (minimum runtime, daily standby limit).
 - Recovery tool, import of 0.3.x journals, WiX installer with uninstall/upgrade gate.
