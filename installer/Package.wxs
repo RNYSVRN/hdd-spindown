@@ -3,7 +3,7 @@
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
   <Package Name="HDD Spindown"
            Manufacturer="HDD Spindown"
-           Version="1.0.0.0"
+           Version="1.0.1.0"
            UpgradeCode="6B1E5D2A-3C47-4F0E-9B8A-2D5C7E91A410"
            Scope="perMachine"
            Language="1031"
