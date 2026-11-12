@@ -79,7 +79,7 @@ namespace HddSpindown.Windows {
      size*=4;
     } finally { Marshal.FreeHGlobal(outBuf); if(inBuf!=IntPtr.Zero) Marshal.FreeHGlobal(inBuf); }
    }
-   throw new InvalidOperationException(action+": Antwort zu groß.");
+   throw new InvalidOperationException(HddSpindown.Core.L.F("{0}: Antwort zu groß.",action));
   }
   public static void Control(SafeFileHandle handle,uint code,string action) {
    uint returned;

@@ -263,6 +263,20 @@ namespace HddSpindown.Tests {
     core.Release(id); Original(b);
    }
   }
+  static void Localization() {
+   cases++;
+   Check(L.T("Pausiert.")=="Pausiert.","German is the source language");
+   using(L.Use(Lang.En)) {
+    Check(L.T("Pausiert.")=="Paused.","English catalog");
+    Check(L.F("Buchstabe nicht entfernt: {0}","D")=="Drive letter not removed: D","Formatted translation");
+    Check(L.T("Nicht im Katalog")=="Nicht im Katalog","Unknown text falls back to source");
+   }
+   string token=L.Tok("Mindestlaufzeit nach Freigabe noch nicht erreicht. Erneut möglich in {0} min.",18)+" "+L.Tok("Pausiert.");
+   Check(L.Expand(token).StartsWith("Mindestlaufzeit")&&L.Expand(token).Contains("18 min")&&L.Expand(token).EndsWith("Pausiert."),"Token expands in German");
+   using(L.Use(Lang.En)) Check(L.Expand(token)=="Minimum runtime after release not reached yet. Possible again in 18 min. Paused.","Token expands in the client's language");
+   Check(L.Expand("ohne Token")=="ohne Token","Plain text unchanged");
+   Check(L.Parse("en-US")==Lang.En&&L.Parse("de")==Lang.De&&L.Parse("fr")==null&&L.Parse(null)==null,"Language codes");
+  }
   static void Child(string dir,string cut) {
    Directory.CreateDirectory(dir); int writes=0;
    var backend=new FakeBackend(Path.Combine(dir,"fake-maps.json"));
@@ -293,6 +307,7 @@ namespace HddSpindown.Tests {
    }
   }
   public static int Main(string[] args) {
+   L.Default=Lang.De; // assertions check German source messages
    if(args.Length==3&&args[0]=="--crash") { Child(args[1],args[2]); return 74; }
    if(args.Length==2&&args[0]=="--recover-simulation") {
     var backend=new FakeBackend(Path.Combine(args[1],"fake-maps.json"));
@@ -307,7 +322,7 @@ namespace HddSpindown.Tests {
    }
    try {
     root=Path.GetFullPath(args[0]); Directory.CreateDirectory(root);
-    Normal(); Failures(); IdentityAndConflict(); StoreFailures(); PersistenceDuringPause(); ReleaseWriteFailures(); CleanupOwnership(); ConcurrentRequests(); HealthRecovery(); IndependentDevices(); Policy(); Resume(); CrashRecovery();
+    Normal(); Failures(); IdentityAndConflict(); StoreFailures(); PersistenceDuringPause(); ReleaseWriteFailures(); CleanupOwnership(); ConcurrentRequests(); HealthRecovery(); IndependentDevices(); Policy(); Resume(); Localization(); CrashRecovery();
     string report=assertions+" assertions passed across "+cases+" isolated scenarios.\r\n20 child-process crash boundaries exercised.\r\nOnly simulated devices/mounts; no native storage calls.\r\nArtifacts: "+root;
     Console.WriteLine(report); File.WriteAllText(Path.Combine(root,"results.txt"),report); return 0;
    } catch(Exception ex) { Console.Error.WriteLine(ex); return 1; }

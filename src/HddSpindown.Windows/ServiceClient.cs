@@ -36,24 +36,25 @@ namespace HddSpindown.Windows {
   // allowConsoleServer: diagnostics build only; accepts a server not registered as service.
   public static Response Send(Request request,int timeoutMs=5000,bool allowConsoleServer=false) {
    request.Version=PipeNames.ProtocolVersion;
+   if(request.Language==null) request.Language=L.CodeOf(L.Current);
    using(var pipe=new NamedPipeClientStream(".",PipeNames.Service,PipeDirection.InOut,PipeOptions.None,System.Security.Principal.TokenImpersonationLevel.Impersonation)) {
     try { pipe.Connect(timeoutMs); }
-    catch(TimeoutException ex) { throw new ServiceUnavailableException("Der HDD-Spindown-Dienst antwortet nicht.",ex); }
-    catch(IOException ex) { throw new ServiceUnavailableException("Verbindung zum HDD-Spindown-Dienst fehlgeschlagen.",ex); }
-    catch(UnauthorizedAccessException ex) { throw new ServiceUnavailableException("Keine Berechtigung für die Verbindung zum Dienst.",ex); }
+    catch(TimeoutException ex) { throw new ServiceUnavailableException(L.T("Der HDD-Spindown-Dienst antwortet nicht."),ex); }
+    catch(IOException ex) { throw new ServiceUnavailableException(L.T("Verbindung zum HDD-Spindown-Dienst fehlgeschlagen."),ex); }
+    catch(UnauthorizedAccessException ex) { throw new ServiceUnavailableException(L.T("Keine Berechtigung für die Verbindung zum Dienst."),ex); }
     uint serverPid;
-    if(!GetNamedPipeServerProcessId(pipe.SafePipeHandle.DangerousGetHandle(),out serverPid)) throw new ServiceUnavailableException("Pipe-Server nicht prüfbar.");
+    if(!GetNamedPipeServerProcessId(pipe.SafePipeHandle.DangerousGetHandle(),out serverPid)) throw new ServiceUnavailableException(L.T("Pipe-Server nicht prüfbar."));
     uint servicePid; var state=QueryState(out servicePid);
-    if(!allowConsoleServer&&(state!=ServiceState.Running||servicePid!=serverPid)) throw new ServiceUnavailableException("Die Verbindung stammt nicht vom registrierten HDD-Spindown-Dienst. Abbruch.");
+    if(!allowConsoleServer&&(state!=ServiceState.Running||servicePid!=serverPid)) throw new ServiceUnavailableException(L.T("Die Verbindung stammt nicht vom registrierten HDD-Spindown-Dienst. Abbruch."));
     pipe.ReadMode=PipeTransmissionMode.Message;
     var bytes=Encoding.UTF8.GetBytes(Codec.Serializer().Serialize(request));
     pipe.Write(bytes,0,bytes.Length); pipe.Flush();
     var ms=new MemoryStream(); var buffer=new byte[16384];
     do {
      int n=pipe.Read(buffer,0,buffer.Length); if(n==0) break; ms.Write(buffer,0,n);
-     if(ms.Length>PipeNames.MaxMessageBytes*4) throw new InvalidOperationException("Antwort zu groß.");
+     if(ms.Length>PipeNames.MaxMessageBytes*4) throw new InvalidOperationException(L.T("Antwort zu groß."));
     } while(!pipe.IsMessageComplete);
-    if(ms.Length==0) throw new ServiceUnavailableException("Dienst hat die Verbindung ohne Antwort geschlossen.");
+    if(ms.Length==0) throw new ServiceUnavailableException(L.T("Dienst hat die Verbindung ohne Antwort geschlossen."));
     return Codec.Serializer().Deserialize<Response>(Encoding.UTF8.GetString(ms.ToArray()));
    }
   }

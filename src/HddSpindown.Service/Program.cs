@@ -18,10 +18,10 @@ namespace HddSpindown.Service {
   }
   protected override void OnStart(string[] args) {
    Log.Init();
-   Log.Info("Dienst startet, Version "+Engine.Version);
-   try { ServiceRecovery.Configure(); } catch(Exception ex) { Log.Error("Wiederanlauf-Konfiguration",ex); }
+   Log.Info(L.F("Dienst startet, Version {0}",Engine.Version));
+   try { ServiceRecovery.Configure(); } catch(Exception ex) { Log.Error(L.T("Wiederanlauf-Konfiguration"),ex); }
    engine=CreateEngine();
-   engine.StoreFault=()=> { Thread.Sleep(3000); Log.Error("Neustart nach Speicherfehler."); Environment.Exit(2); };
+   engine.StoreFault=()=> { Thread.Sleep(3000); Log.Error(L.T("Neustart nach Speicherfehler.")); Environment.Exit(2); };
    pipe=new PipeServer(engine); pipe.Start();
    // Recovery may wait on slow devices; do not block the service control manager.
    starter=new Thread(()=> { try { engine.Start(); } catch(Exception ex) { Log.Error("Start",ex); } }) {IsBackground=true,Name="Recovery"};
@@ -34,10 +34,10 @@ namespace HddSpindown.Service {
    if(engine!=null) engine.Stop();
    if(pipe!=null) pipe.Dispose();
    if(engine!=null) engine.Dispose();
-   Log.Info("Dienst beendet.");
+   Log.Info(L.T("Dienst beendet."));
   }
-  protected override void OnStop() { Shutdown("Dienst wird beendet: Laufwerksbuchstaben werden wiederhergestellt."); }
-  protected override void OnShutdown() { Shutdown("Windows fährt herunter: Laufwerksbuchstaben werden wiederhergestellt."); }
+  protected override void OnStop() { Shutdown(L.T("Dienst wird beendet: Laufwerksbuchstaben werden wiederhergestellt.")); }
+  protected override void OnShutdown() { Shutdown(L.T("Windows fährt herunter: Laufwerksbuchstaben werden wiederhergestellt.")); }
   protected override bool OnPowerEvent(PowerBroadcastStatus status) {
    if(engine==null) return true;
    switch(status) {
@@ -55,10 +55,10 @@ namespace HddSpindown.Service {
     // Diagnostics only: runs the same engine in a console window (administrator).
     Log.ConsoleEcho=true; Log.Init();
     var engine=SpindownService.CreateEngine(); var pipe=new PipeServer(engine); pipe.Start(); engine.Start();
-    Console.WriteLine("HDD Spindown Dienst im Konsolenmodus. Enter beendet und stellt alle Laufwerksbuchstaben wieder her.");
+    Console.WriteLine(L.T("HDD Spindown Dienst im Konsolenmodus. Enter beendet und stellt alle Laufwerksbuchstaben wieder her."));
     Console.ReadLine(); engine.Stop(); pipe.Dispose(); engine.Dispose(); return 0;
    }
-   if(Environment.UserInteractive) { Console.WriteLine("HDD Spindown Dienst. Wird vom Installer als Windows-Dienst eingerichtet."); return 1; }
+   if(Environment.UserInteractive) { Console.WriteLine(L.T("HDD Spindown Dienst. Wird vom Installer als Windows-Dienst eingerichtet.")); return 1; }
    ServiceBase.Run(new SpindownService());
    return 0;
   }

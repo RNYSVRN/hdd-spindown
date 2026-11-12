@@ -18,16 +18,16 @@ namespace HddSpindown.Service {
   const uint SC_MANAGER_CONNECT=1, SERVICE_CHANGE_CONFIG=2, SERVICE_START=0x10;
 
   public static void Configure() {
-   IntPtr scm=OpenSCManager(null,null,SC_MANAGER_CONNECT); if(scm==IntPtr.Zero) { Log.Warn("Dienst-Wiederanlauf nicht konfiguriert: SCM nicht erreichbar."); return; }
+   IntPtr scm=OpenSCManager(null,null,SC_MANAGER_CONNECT); if(scm==IntPtr.Zero) { Log.Warn(HddSpindown.Core.L.T("Dienst-Wiederanlauf nicht konfiguriert: SCM nicht erreichbar.")); return; }
    try {
-    IntPtr svc=OpenService(scm,Paths.ServiceName,SERVICE_CHANGE_CONFIG|SERVICE_START); if(svc==IntPtr.Zero) { Log.Warn("Dienst-Wiederanlauf nicht konfiguriert: Dienst nicht gefunden."); return; }
+    IntPtr svc=OpenService(scm,Paths.ServiceName,SERVICE_CHANGE_CONFIG|SERVICE_START); if(svc==IntPtr.Zero) { Log.Warn(HddSpindown.Core.L.T("Dienst-Wiederanlauf nicht konfiguriert: Dienst nicht gefunden.")); return; }
     try {
      var actions=new[]{new ScAction{Type=SC_ACTION_RESTART,Delay=5000},new ScAction{Type=SC_ACTION_RESTART,Delay=30000},new ScAction{Type=SC_ACTION_RESTART,Delay=120000},new ScAction{Type=SC_ACTION_NONE,Delay=0}};
      int size=Marshal.SizeOf(typeof(ScAction)); IntPtr buffer=Marshal.AllocHGlobal(size*actions.Length);
      try {
       for(int i=0;i<actions.Length;i++) Marshal.StructureToPtr(actions[i],buffer+i*size,false);
       var info=new FailureActions {ResetPeriod=86400,RebootMsg=null,Command=null,Count=(uint)actions.Length,Actions=buffer};
-      if(!ChangeServiceConfig2(svc,SERVICE_CONFIG_FAILURE_ACTIONS,ref info)) Log.Warn("Dienst-Wiederanlauf: Windows-Fehler "+Marshal.GetLastWin32Error());
+      if(!ChangeServiceConfig2(svc,SERVICE_CONFIG_FAILURE_ACTIONS,ref info)) Log.Warn(HddSpindown.Core.L.F("Dienst-Wiederanlauf: Windows-Fehler {0}",Marshal.GetLastWin32Error()));
       var flag=new FailureActionsFlag {OnNonCrashFailures=1};
       ChangeServiceConfig2(svc,SERVICE_CONFIG_FAILURE_ACTIONS_FLAG,ref flag);
      } finally { Marshal.FreeHGlobal(buffer); }

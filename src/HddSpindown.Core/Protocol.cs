@@ -29,6 +29,7 @@ namespace HddSpindown.Core {
   public string DeviceId {get;set;}
   public string RequestId {get;set;}
   public LegacyEntry[] Legacy {get;set;}
+  public string Language {get;set;} // "de" / "en"; answers use this language
  }
  public sealed class LegacyEntry {
   public string Root {get;set;}

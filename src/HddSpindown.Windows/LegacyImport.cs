@@ -15,29 +15,29 @@ namespace HddSpindown.Windows {
 
   public static LegacyEntry[] ReadFile(string path) {
    if(!File.Exists(path)) return new LegacyEntry[0];
-   var info=new FileInfo(path); if(info.Length>64*1024) throw new InvalidOperationException("Altes Journal ist ungewöhnlich groß. Bitte manuell prüfen.");
+   var info=new FileInfo(path); if(info.Length>64*1024) throw new InvalidOperationException(L.T("Altes Journal ist ungewöhnlich groß. Bitte manuell prüfen."));
    return Codec.Serializer().Deserialize<LegacyEntry[]>(File.ReadAllText(path))??new LegacyEntry[0];
   }
   public sealed class Result { public string Root; public bool Restored; public string Message; }
 
   public static Result[] Restore(IEnumerable<LegacyEntry> entries,IDeviceBackend backend) {
    var list=(entries??new LegacyEntry[0]).ToArray();
-   if(list.Length>MaxEntries) throw new InvalidOperationException("Zu viele Einträge im alten Journal.");
+   if(list.Length>MaxEntries) throw new InvalidOperationException(L.T("Zu viele Einträge im alten Journal."));
    string system=Path.GetPathRoot(Environment.SystemDirectory);
    var results=new List<Result>();
    foreach(var e in list) {
     var r=new Result {Root=e==null?"?":e.Root};
     try {
-     if(e==null||e.Root==null||e.Volume==null||!RootPattern.IsMatch(e.Root)) throw new InvalidOperationException("Ungültiger Eintrag.");
-     var m=VolumePattern.Match(e.Volume); if(!m.Success) throw new InvalidOperationException("Ungültige Volume-Angabe.");
-     if(String.Equals(e.Root,system,StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Windows-Laufwerksbuchstabe wird nie verändert.");
+     if(e==null||e.Root==null||e.Volume==null||!RootPattern.IsMatch(e.Root)) throw new InvalidOperationException(L.T("Ungültiger Eintrag."));
+     var m=VolumePattern.Match(e.Volume); if(!m.Success) throw new InvalidOperationException(L.T("Ungültige Volume-Angabe."));
+     if(String.Equals(e.Root,system,StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException(L.T("Windows-Laufwerksbuchstabe wird nie verändert."));
      string letter=e.Root.Substring(0,1).ToUpperInvariant(); string guid=Guid.Parse(m.Groups[1].Value).ToString("D");
      string current=backend.LookupLetter(letter);
-     if(current!=null&&!String.Equals(current,guid,StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException(letter+": ist inzwischen anderweitig belegt. Nichts überschrieben.");
+     if(current!=null&&!String.Equals(current,guid,StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException(L.F("{0}: ist inzwischen anderweitig belegt. Nichts überschrieben.",letter));
      if(current==null) backend.RestoreLetter(letter,guid);
-     if(!String.Equals(backend.LookupLetter(letter),guid,StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Wiederherstellung von "+letter+": nicht bestätigt.");
+     if(!String.Equals(backend.LookupLetter(letter),guid,StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException(L.F("Wiederherstellung von {0}: nicht bestätigt.",letter));
      backend.NotifyExplorer(letter,true);
-     r.Restored=true; r.Message=current==null?letter+": wiederhergestellt.":letter+": war bereits korrekt zugeordnet.";
+     r.Restored=true; r.Message=current==null?L.F("{0}: wiederhergestellt.",letter):L.F("{0}: war bereits korrekt zugeordnet.",letter);
     } catch(Exception ex) { r.Message=ex.Message; }
     results.Add(r);
    }

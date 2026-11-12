@@ -47,25 +47,25 @@ namespace HddSpindown.Core {
    error=null;
    try {
     string path=PathFor(name); if(!File.Exists(path)) return null;
-    if(new FileInfo(path).Length>4*1024*1024) throw new StoreException("Zustandsdatei überschreitet das Größenlimit.");
+    if(new FileInfo(path).Length>4*1024*1024) throw new StoreException(L.T("Zustandsdatei überschreitet das Größenlimit."));
     var e=Codec.Serializer().Deserialize<Envelope>(File.ReadAllText(path,Encoding.UTF8));
-    if(e==null||e.Schema!=1||e.Hash!=Digest(e)||e.Revision<0) throw new StoreException("Prüfsumme oder Schema ungültig.");
+    if(e==null||e.Schema!=1||e.Hash!=Digest(e)||e.Revision<0) throw new StoreException(L.T("Prüfsumme oder Schema ungültig."));
     var state=Codec.Serializer().Deserialize<State>(e.Payload); state.Validate();
-    if(state.Revision!=e.Revision) throw new StoreException("Widersprüchliche Revision.");
+    if(state.Revision!=e.Revision) throw new StoreException(L.T("Widersprüchliche Revision."));
     return e;
    } catch(Exception ex) { error=ex; return null; }
   }
   void Load() {
    Exception ea,eb; var a=TryRead("state-A.json",out ea); var b=TryRead("state-B.json",out eb);
    if(a==null&&b==null) {
-    if(ea!=null||eb!=null||Directory.EnumerateFiles(dir).Any(p=>Path.GetFileName(p)!="owner.lock")) throw new StoreException("Kein eindeutig gültiger aktueller Zustand. Nur Diagnose; keine automatische Rekonstruktion aus alten Sicherungen.");
+    if(ea!=null||eb!=null||Directory.EnumerateFiles(dir).Any(p=>Path.GetFileName(p)!="owner.lock")) throw new StoreException(L.T("Kein eindeutig gültiger aktueller Zustand. Nur Diagnose; keine automatische Rekonstruktion aus alten Sicherungen."));
     WriteFile("initialized","schema=1",false);
     current=Make(new State(),""); healthy=false; Repair(); return;
    }
    if(a!=null&&b!=null) {
     var high=a.Revision>=b.Revision?a:b; var low=a.Revision>=b.Revision?b:a;
-    if(high.Revision==low.Revision && high.Hash!=low.Hash) throw new StoreException("Widersprüchliche Zustandskopien derselben Revision.");
-    if(high.Revision!=low.Revision && (high.Revision!=low.Revision+1||high.PreviousHash!=low.Hash)) throw new StoreException("Zustandskopien bilden keine eindeutige Folge.");
+    if(high.Revision==low.Revision && high.Hash!=low.Hash) throw new StoreException(L.T("Widersprüchliche Zustandskopien derselben Revision."));
+    if(high.Revision!=low.Revision && (high.Revision!=low.Revision+1||high.PreviousHash!=low.Hash)) throw new StoreException(L.T("Zustandskopien bilden keine eindeutige Folge."));
     current=high; healthy=a.Hash==b.Hash;
    } else { current=a??b; healthy=false; }
   }
@@ -83,27 +83,27 @@ namespace HddSpindown.Core {
   }
   void WriteBoth(Envelope envelope) {
    string text=Codec.Serializer().Serialize(envelope);
-   if(Encoding.UTF8.GetByteCount(text)>4*1024*1024)throw new StoreException("Zustandsspeicher benötigt eine geprüfte Archivierung, bevor weitere Vorgänge möglich sind.");
+   if(Encoding.UTF8.GetByteCount(text)>4*1024*1024)throw new StoreException(L.T("Zustandsspeicher benötigt eine geprüfte Archivierung, bevor weitere Vorgänge möglich sind."));
    WriteFile("state-A.json",text,true); WriteFile("state-B.json",text,true);
   }
   public void Save(State next) {
    lock(gate) {
    CheckDisposed();
-   if(!healthy)throw new StoreException("Zustandsspeicher nicht schreibbereit; Wiederherstellung erforderlich.");
-   if(next.Revision!=current.Revision)throw new StoreException("Veralteter Schreibauftrag.");
+   if(!healthy)throw new StoreException(L.T("Zustandsspeicher nicht schreibbereit; Wiederherstellung erforderlich."));
+   if(next.Revision!=current.Revision)throw new StoreException(L.T("Veralteter Schreibauftrag."));
    var copy=Codec.Copy(next); copy.Revision++; var envelope=Make(copy,current.Hash);
    // Poison before starting I/O. A partial write must prevent all later effects.
    healthy=false;
    try { WriteBoth(envelope); current=envelope; healthy=true; next.Revision=copy.Revision; }
-   catch(Exception ex) { poisoned=true; throw new StoreException("Zustandsänderung nicht vollständig bestätigt. Keine weitere Geräteänderung in diesem Prozess.",ex); }
+   catch(Exception ex) { poisoned=true; throw new StoreException(L.T("Zustandsänderung nicht vollständig bestätigt. Keine weitere Geräteänderung in diesem Prozess."),ex); }
    }
   }
   public void Repair() {
    lock(gate) {
-   if(poisoned)throw new StoreException("Nach einem Schreibfehler Speicher schließen und neu einlesen.");
+   if(poisoned)throw new StoreException(L.T("Nach einem Schreibfehler Speicher schließen und neu einlesen."));
    CheckDisposed(); healthy=false;
    try { WriteBoth(current); healthy=true; }
-   catch(Exception ex) { poisoned=true; throw new StoreException("Zustandskopien konnten nicht abgeglichen werden.",ex); }
+   catch(Exception ex) { poisoned=true; throw new StoreException(L.T("Zustandskopien konnten nicht abgeglichen werden."),ex); }
    }
   }
   public void Dispose() { lock(gate) { if(disposed)return; disposed=true; healthy=false; ownership.Dispose(); } }

@@ -64,7 +64,7 @@ namespace HddSpindown.Service {
     int n=pipe.Read(buffer,0,buffer.Length);
     if(n==0) return null;
     ms.Write(buffer,0,n);
-    if(ms.Length>PipeNames.MaxMessageBytes) throw new InvalidOperationException("Nachricht zu groß.");
+    if(ms.Length>PipeNames.MaxMessageBytes) throw new InvalidOperationException(L.T("Nachricht zu groß."));
    } while(!pipe.IsMessageComplete);
    return ms.ToArray();
   }
@@ -86,9 +86,9 @@ namespace HddSpindown.Service {
       Response response;
       try {
        var request=Codec.Serializer().Deserialize<Request>(Encoding.UTF8.GetString(bytes));
-       if(request!=null&&request.Op!=Ops.List&&request.Op!=Ops.Hello) Log.Info("Anfrage "+request.Op+" von "+user+(admin?" (Admin)":""));
+       if(request!=null&&request.Op!=Ops.List&&request.Op!=Ops.Hello) Log.Info(L.F("Anfrage {0} von {1}",request.Op,user)+(admin?" (Admin)":""));
        response=engine.Handle(request,admin);
-      } catch(Exception ex) { Log.Warn("Ungültige Nachricht von "+user+": "+ex.Message); response=new Response {Ok=false,Error="Ungültige Nachricht.",ErrorKind="Protocol"}; }
+      } catch(Exception ex) { Log.Warn(L.F("Ungültige Nachricht von {0}: {1}",user,ex.Message)); response=new Response {Ok=false,Error=L.T("Ungültige Nachricht."),ErrorKind="Protocol"}; }
       var outBytes=Encoding.UTF8.GetBytes(Codec.Serializer().Serialize(response));
       pipe.Write(outBytes,0,outBytes.Length); pipe.Flush();
      }

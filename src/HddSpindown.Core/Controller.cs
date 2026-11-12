@@ -23,7 +23,7 @@ namespace HddSpindown.Core {
   public Exception OriginalError {get;private set;}
   public Exception[] CleanupErrors {get;private set;}
   public OperationException(string id,Exception primary,IEnumerable<Exception> cleanup)
-   :base("Vorgang "+id+" fehlgeschlagen: "+primary.Message,primary) {
+   :base(L.F("Vorgang {0} fehlgeschlagen: {1}",id,primary.Message),primary) {
    RequestId=id; OriginalError=primary; CleanupErrors=cleanup.ToArray();
   }
  }
@@ -51,17 +51,17 @@ namespace HddSpindown.Core {
    var lastCompleted=mine.Where(t=>t.Phase==Phase.Completed).Select(t=>Parse(t.CompletedUtc)??Parse(t.UpdatedUtc)).Where(t=>t.HasValue).Select(t=>t.Value).DefaultIfEmpty(DateTime.MinValue).Max();
    if(lastCompleted!=DateTime.MinValue && policy.MinimumRuntime>TimeSpan.Zero) {
     var since=now-lastCompleted;
-    if(since<TimeSpan.Zero) throw new PolicyException("Systemzeit liegt vor der letzten Freigabe. Mindestlaufzeit kann nicht bestätigt werden.");
-    if(since<policy.MinimumRuntime) { var rest=policy.MinimumRuntime-since; throw new PolicyException("Mindestlaufzeit nach Freigabe noch nicht erreicht. Erneut möglich in "+Math.Ceiling(rest.TotalMinutes)+" min.",rest); }
+    if(since<TimeSpan.Zero) throw new PolicyException(L.Tok("Systemzeit liegt vor der letzten Freigabe. Mindestlaufzeit kann nicht bestätigt werden."));
+    if(since<policy.MinimumRuntime) { var rest=policy.MinimumRuntime-since; throw new PolicyException(L.Tok("Mindestlaufzeit nach Freigabe noch nicht erreicht. Erneut möglich in {0} min.",Math.Ceiling(rest.TotalMinutes)),rest); }
    }
    int recent=mine.Count(t=>{ var s=Parse(t.StandbyUtc); return s.HasValue&&now-s.Value<TimeSpan.FromHours(24); });
-   if(recent>=policy.MaxStandbyPer24h) throw new PolicyException("Limit von "+policy.MaxStandbyPer24h+" Standby-Anforderungen in 24 Stunden erreicht. Häufige Wechsel belasten die HDD.");
+   if(recent>=policy.MaxStandbyPer24h) throw new PolicyException(L.Tok("Limit von {0} Standby-Anforderungen in 24 Stunden erreicht. Häufige Wechsel belasten die HDD.",policy.MaxStandbyPer24h));
   }
   public void SetSuspended(bool value) { lock(gate) { suspended=value; } }
   void Ready() {
    if(disposed)throw new ObjectDisposedException("Controller");
-   if(!initialized)throw new InvalidOperationException("Zuerst Wiederherstellungsbestand abgleichen.");
-   if(!store.Healthy)throw new StoreException("Speicher nicht bestätigt. Neustart und Recovery erforderlich.");
+   if(!initialized)throw new InvalidOperationException(L.T("Zuerst Wiederherstellungsbestand abgleichen."));
+   if(!store.Healthy)throw new StoreException(L.T("Speicher nicht bestätigt. Neustart und Recovery erforderlich."));
   }
   static void Mark(Transaction tx,Phase phase) { tx.Phase=phase; tx.UpdatedUtc=DateTime.UtcNow.ToString("O"); }
   void Save(State state,Transaction tx,Phase phase) { Mark(tx,phase); store.Save(state); }
@@ -69,20 +69,20 @@ namespace HddSpindown.Core {
   static void Verify(Descriptor expected,Descriptor actual,bool pausing=true) {
    actual.ValidateTopology();
    if(pausing)actual.Validate();
-   else if(actual.Protected||actual.Encrypted)throw new InvalidOperationException("Wiederherstellung benötigt Klärung der geschützten Gerätekonfiguration.");
-   if(!expected.SameTopology(actual))throw new InvalidOperationException("Geräteidentität oder Partitionstopologie hat sich geändert.");
+   else if(actual.Protected||actual.Encrypted)throw new InvalidOperationException(L.T("Wiederherstellung benötigt Klärung der geschützten Gerätekonfiguration."));
+   if(!expected.SameTopology(actual))throw new InvalidOperationException(L.T("Geräteidentität oder Partitionstopologie hat sich geändert."));
    if(pausing && expected.Volumes.Any(v=>!v.Letters.OrderBy(l=>l).SequenceEqual(actual.Volumes.Single(o=>SameVolume(v.VolumeGuid,o.VolumeGuid)).Letters.OrderBy(l=>l))))
-    throw new InvalidOperationException("Laufwerksbuchstaben haben sich während der Sperrung geändert.");
+    throw new InvalidOperationException(L.T("Laufwerksbuchstaben haben sich während der Sperrung geändert."));
   }
   static void CheckSystemLetter(string letter) {
    string system=Path.GetPathRoot(Environment.SystemDirectory);
-   if(!String.IsNullOrEmpty(system)&&String.Equals(letter,system.Substring(0,1),StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException("Der Windows-Laufwerksbuchstabe darf nicht verändert werden.");
+   if(!String.IsNullOrEmpty(system)&&String.Equals(letter,system.Substring(0,1),StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException(L.T("Der Windows-Laufwerksbuchstabe darf nicht verändert werden."));
   }
   // Startup never resumes an old sleep request. It reconciles access first.
   public OperationException[] Initialize() {
    lock(gate) {
     if(disposed)throw new ObjectDisposedException("Controller");
-    if(initialized)throw new InvalidOperationException("Controller ist bereits initialisiert.");
+    if(initialized)throw new InvalidOperationException(L.T("Controller ist bereits initialisiert."));
     if(!store.Healthy)store.Repair();
     initialized=true;
     var failures=RecoverAllInternal();
@@ -92,42 +92,42 @@ namespace HddSpindown.Core {
   }
   public Status Pause(string trustedDeviceId,Guid request) {
    lock(gate) {
-    Ready(); if(request==Guid.Empty)throw new ArgumentException("Request-ID fehlt.");
+    Ready(); if(request==Guid.Empty)throw new ArgumentException(L.T("Request-ID fehlt."));
     State state=store.Read(); string id=request.ToString("D");
     Transaction old=state.Transactions.SingleOrDefault(t=>t.RequestId==id);
     if(old!=null) {
-     if(old.Device.Identity.DeviceId!=trustedDeviceId)throw new InvalidOperationException("Request-ID gehört zu einem anderen Gerät.");
+     if(old.Device.Identity.DeviceId!=trustedDeviceId)throw new InvalidOperationException(L.T("Request-ID gehört zu einem anderen Gerät."));
      return ToStatus(old);
     }
-    if(suspended)throw new InvalidOperationException("Windows wechselt in den Energiesparmodus. Keine neuen Vorgänge.");
-    if(state.Transactions.Any(t=>t.Device.Identity.DeviceId==trustedDeviceId&&t.Phase!=Phase.Completed))throw new InvalidOperationException("Gerät hat bereits einen offenen Vorgang.");
+    if(suspended)throw new InvalidOperationException(L.T("Windows wechselt in den Energiesparmodus. Keine neuen Vorgänge."));
+    if(state.Transactions.Any(t=>t.Device.Identity.DeviceId==trustedDeviceId&&t.Phase!=Phase.Completed))throw new InvalidOperationException(L.T("Gerät hat bereits einen offenen Vorgang."));
     CheckPolicy(state,trustedDeviceId);
     var resources=new Live(); Transaction tx=null;
     live.Add(id,resources); // Track ownership even if preparation/cleanup fails.
     try {
      resources.Device=backend.Open(trustedDeviceId);
      Descriptor descriptor=Codec.Copy(resources.Device.Inspect()); descriptor.Validate();
-     if(descriptor.Identity.DeviceId!=trustedDeviceId)throw new InvalidOperationException("Geöffnetes Gerät passt nicht zum freigegebenen Schlüssel.");
+     if(descriptor.Identity.DeviceId!=trustedDeviceId)throw new InvalidOperationException(L.T("Geöffnetes Gerät passt nicht zum freigegebenen Schlüssel."));
      tx=new Transaction {RequestId=id,Device=descriptor,Hardware=HardwareState.Unknown,Mounts=new List<MountRecord>(),CreatedUtc=clock().ToString("O")};
      foreach(var volume in descriptor.Volumes) foreach(string letter in volume.Letters) {
       CheckSystemLetter(letter);
-      if(!SameVolume(backend.LookupLetter(letter),volume.VolumeGuid))throw new InvalidOperationException("Ursprüngliche Zuordnung stimmt nicht: "+letter);
+      if(!SameVolume(backend.LookupLetter(letter),volume.VolumeGuid))throw new InvalidOperationException(L.F("Ursprüngliche Zuordnung stimmt nicht: {0}",letter));
       tx.Mounts.Add(new MountRecord {Letter=letter,VolumeGuid=volume.VolumeGuid,Step=MountStep.Present});
      }
      state.Transactions.Add(tx); Save(state,tx,Phase.Prepared);
      Save(state,tx,Phase.Locking);
      foreach(var volume in descriptor.Volumes) {
       var handle=resources.Device.LockVolume(volume.VolumeGuid);
-      if(handle==null)throw new InvalidOperationException("Backend hat keinen bestätigten Sperr-Handle geliefert.");
+      if(handle==null)throw new InvalidOperationException(L.T("Backend hat keinen bestätigten Sperr-Handle geliefert."));
       resources.Locks.Add(handle);
      }
      Verify(descriptor,resources.Device.Inspect());
      Save(state,tx,Phase.Locked);
      foreach(var mount in tx.Mounts) {
-      if(!SameVolume(backend.LookupLetter(mount.Letter),mount.VolumeGuid))throw new InvalidOperationException("Zuordnung vor Ausblenden geändert: "+mount.Letter);
+      if(!SameVolume(backend.LookupLetter(mount.Letter),mount.VolumeGuid))throw new InvalidOperationException(L.F("Zuordnung vor Ausblenden geändert: {0}",mount.Letter));
       mount.Step=MountStep.RemoveIntent; Save(state,tx,Phase.Hiding);
       backend.RemoveLetter(mount.Letter);
-      if(backend.LookupLetter(mount.Letter)!=null)throw new InvalidOperationException("Buchstabe nicht entfernt: "+mount.Letter);
+      if(backend.LookupLetter(mount.Letter)!=null)throw new InvalidOperationException(L.F("Buchstabe nicht entfernt: {0}",mount.Letter));
       mount.Step=MountStep.Removed; store.Save(state);
       backend.NotifyExplorer(mount.Letter,false);
      }
@@ -150,7 +150,7 @@ namespace HddSpindown.Core {
        }
       } catch(Exception rollback) {
        cleanup.Add(rollback);
-       try { RecordRecoveryError(id,new AggregateException("Ursprünglicher Fehler und fehlgeschlagene Wiederherstellung.",primary,rollback)); }
+       try { RecordRecoveryError(id,new AggregateException(L.T("Ursprünglicher Fehler und fehlgeschlagene Wiederherstellung."),primary,rollback)); }
        catch(Exception recording) { cleanup.Add(recording); }
       }
      }
@@ -170,7 +170,7 @@ namespace HddSpindown.Core {
    lock(gate) {
     Ready(); var state=store.Read(); string id=request.ToString("D");
     var tx=state.Transactions.SingleOrDefault(t=>t.RequestId==id);
-    if(tx==null)throw new InvalidOperationException("Unbekannter Vorgang.");
+    if(tx==null)throw new InvalidOperationException(L.T("Unbekannter Vorgang."));
     if(tx.Phase==Phase.Completed)return ToStatus(tx);
     try { RecoverOne(state,tx); }
     catch(Exception ex) {
@@ -198,20 +198,20 @@ namespace HddSpindown.Core {
     // Check all letters before the first restore; one conflict holds this disk.
     foreach(var mount in tx.Mounts) {
      string current=backend.LookupLetter(mount.Letter);
-     if(current!=null&&!SameVolume(current,mount.VolumeGuid))throw new InvalidOperationException("Buchstabenkonflikt: "+mount.Letter+". Keine fremde Zuordnung wird überschrieben.");
+     if(current!=null&&!SameVolume(current,mount.VolumeGuid))throw new InvalidOperationException(L.F("Buchstabenkonflikt: {0}. Keine fremde Zuordnung wird überschrieben.",mount.Letter));
     }
     Save(state,tx,Phase.Releasing);
     if(held) {
      var errors=ReleaseHandles(resources);
-     if(errors.Count>0)throw new AggregateException("Sperren konnten nicht vollständig gelöst werden.",errors);
+     if(errors.Count>0)throw new AggregateException(L.T("Sperren konnten nicht vollständig gelöst werden."),errors);
      live.Remove(tx.RequestId);
     }
     foreach(var mount in tx.Mounts) {
      string current=backend.LookupLetter(mount.Letter);
-     if(current!=null&&!SameVolume(current,mount.VolumeGuid))throw new InvalidOperationException("Buchstabe während Freigabe neu belegt: "+mount.Letter);
+     if(current!=null&&!SameVolume(current,mount.VolumeGuid))throw new InvalidOperationException(L.F("Buchstabe während Freigabe neu belegt: {0}",mount.Letter));
      mount.Step=MountStep.RestoreIntent; store.Save(state);
      if(current==null)backend.RestoreLetter(mount.Letter,mount.VolumeGuid);
-     if(!SameVolume(backend.LookupLetter(mount.Letter),mount.VolumeGuid))throw new InvalidOperationException("Wiederherstellung nicht bestätigt: "+mount.Letter);
+     if(!SameVolume(backend.LookupLetter(mount.Letter),mount.VolumeGuid))throw new InvalidOperationException(L.F("Wiederherstellung nicht bestätigt: {0}",mount.Letter));
      mount.Step=MountStep.Restored; store.Save(state);
      backend.NotifyExplorer(mount.Letter,true);
     }
@@ -222,7 +222,7 @@ namespace HddSpindown.Core {
     if(ownsInspection)try { inspection.Dispose(); }
     catch(Exception closeError) {
      cleanupDevices.Add(inspection); // Retain ownership for a later cleanup attempt.
-     if(original!=null)throw new AggregateException("Wiederherstellung und Ressourcenfreigabe fehlgeschlagen.",original,closeError);
+     if(original!=null)throw new AggregateException(L.T("Wiederherstellung und Ressourcenfreigabe fehlgeschlagen."),original,closeError);
      throw;
     }
    }

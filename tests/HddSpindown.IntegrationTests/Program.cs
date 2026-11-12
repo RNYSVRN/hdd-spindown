@@ -210,7 +210,7 @@ namespace HddSpindown.IntegrationTests {
    Log("Szenario: Inventur überspringt pausierte Geräte");
    var b=new WindowsBackend(TestOptions());
    var skipped=b.List(id=>id==t.DeviceId).Single(d=>d.DeviceId==t.DeviceId);
-   Check(skipped.Reason=="Pausiert."&&skipped.Letters.Length==0,"Pausiertes Gerät nicht inspiziert");
+   Check(L.Expand(skipped.Reason)=="Pausiert."&&skipped.Letters.Length==0,"Pausiertes Gerät nicht inspiziert");
   }
 
   static void ServiceEngine(TestDisk t) {
@@ -261,6 +261,7 @@ namespace HddSpindown.IntegrationTests {
   }
 
   static int Main(string[] args) {
+   L.Default=Lang.De;
    if(args.Length==4&&args[0]=="--child") return Child(args[1],args[2],args[3]);
    root=Path.Combine(Path.GetTempPath(),"HDDSpindown-IT-"+DateTime.Now.ToString("yyyyMMdd-HHmmss"));
    Directory.CreateDirectory(root);

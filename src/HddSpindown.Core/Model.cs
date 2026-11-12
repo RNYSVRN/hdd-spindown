@@ -21,7 +21,7 @@ namespace HddSpindown.Core {
   public void Validate() {
    Guid id;
    if(String.IsNullOrWhiteSpace(DeviceId)||String.IsNullOrWhiteSpace(Serial)||String.IsNullOrWhiteSpace(Model)||String.IsNullOrWhiteSpace(Firmware)||!Guid.TryParse(DiskGuid,out id)||id==Guid.Empty||Capacity<=0)
-    throw new InvalidOperationException("Unvollständige Geräteidentität.");
+    throw new InvalidOperationException(L.T("Unvollständige Geräteidentität."));
   }
  }
  public sealed class Volume {
@@ -40,23 +40,23 @@ namespace HddSpindown.Core {
   public bool Encrypted {get;set;}
   public void Validate() {
    ValidateTopology();
-   if(!QualifiedSataHdd||Protected||!HealthyNtfs||Encrypted) throw new InvalidOperationException("Gerät ist nicht für diese Operation zugelassen.");
+   if(!QualifiedSataHdd||Protected||!HealthyNtfs||Encrypted) throw new InvalidOperationException(L.T("Gerät ist nicht für diese Operation zugelassen."));
   }
   public void ValidateTopology() {
-   if(Identity==null) throw new InvalidOperationException("Geräteidentität fehlt.");
+   if(Identity==null) throw new InvalidOperationException(L.T("Geräteidentität fehlt."));
    Identity.Validate();
-   if(Volumes==null||Volumes.Length==0) throw new InvalidOperationException("Keine eindeutig zugeordneten Volumes.");
+   if(Volumes==null||Volumes.Length==0) throw new InvalidOperationException(L.T("Keine eindeutig zugeordneten Volumes."));
    var volumes=new HashSet<string>(StringComparer.OrdinalIgnoreCase); var partitions=new HashSet<string>(StringComparer.OrdinalIgnoreCase); var letters=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
    foreach(var v in Volumes) {
     Guid guid,partition;
     if(v==null||!Guid.TryParse(v.VolumeGuid,out guid)||guid==Guid.Empty||!Guid.TryParse(v.PartitionGuid,out partition)||partition==Guid.Empty||v.Offset<0||v.Length<=0||v.Offset>Identity.Capacity-v.Length||!volumes.Add(guid.ToString("D"))||!partitions.Add(partition.ToString("D"))||v.Letters==null)
-     throw new InvalidOperationException("Ungültige Volume-/Partitionstopologie.");
-    foreach(var letter in v.Letters) { ValidateLetter(letter); if(!letters.Add(letter)) throw new InvalidOperationException("Doppelte Buchstabenzuordnung."); }
+     throw new InvalidOperationException(L.T("Ungültige Volume-/Partitionstopologie."));
+    foreach(var letter in v.Letters) { ValidateLetter(letter); if(!letters.Add(letter)) throw new InvalidOperationException(L.T("Doppelte Buchstabenzuordnung.")); }
    }
    var ordered=Volumes.OrderBy(v=>v.Offset).ToArray();
-   for(int i=1;i<ordered.Length;i++) if(ordered[i-1].Offset+ordered[i-1].Length>ordered[i].Offset) throw new InvalidOperationException("Überlappende Partitionen.");
+   for(int i=1;i<ordered.Length;i++) if(ordered[i-1].Offset+ordered[i-1].Length>ordered[i].Offset) throw new InvalidOperationException(L.T("Überlappende Partitionen."));
   }
-  public static void ValidateLetter(string letter) { if(letter==null||letter.Length!=1||letter[0]<'A'||letter[0]>'Z') throw new InvalidOperationException("Ungültiger Laufwerksbuchstabe."); }
+  public static void ValidateLetter(string letter) { if(letter==null||letter.Length!=1||letter[0]<'A'||letter[0]>'Z') throw new InvalidOperationException(L.T("Ungültiger Laufwerksbuchstabe.")); }
   public bool SameTopology(Descriptor other) {
    if(other==null||!Identity.Same(other.Identity)||Volumes.Length!=other.Volumes.Length) return false;
    return Volumes.All(v=>other.Volumes.Any(o=>String.Equals(v.VolumeGuid,o.VolumeGuid,StringComparison.OrdinalIgnoreCase)&&String.Equals(v.PartitionGuid,o.PartitionGuid,StringComparison.OrdinalIgnoreCase)&&v.Offset==o.Offset&&v.Length==o.Length));
@@ -84,19 +84,19 @@ namespace HddSpindown.Core {
   public List<Transaction> Transactions {get;set;}
   public State() { Transactions=new List<Transaction>(); }
   public void Validate() {
-   if(Revision<0||Transactions==null) throw new InvalidOperationException("Ungültiger Speicherzustand.");
+   if(Revision<0||Transactions==null) throw new InvalidOperationException(L.T("Ungültiger Speicherzustand."));
    var requests=new HashSet<string>(); var devices=new HashSet<string>(); var letters=new HashSet<string>();
    foreach(var tx in Transactions) {
     Guid request;
-    if(tx==null||!Guid.TryParse(tx.RequestId,out request)||request==Guid.Empty||!requests.Add(request.ToString("D"))||tx.Device==null||tx.Mounts==null||!Enum.IsDefined(typeof(Phase),tx.Phase)||!Enum.IsDefined(typeof(HardwareState),tx.Hardware)) throw new InvalidOperationException("Ungültige Transaktion.");
+    if(tx==null||!Guid.TryParse(tx.RequestId,out request)||request==Guid.Empty||!requests.Add(request.ToString("D"))||tx.Device==null||tx.Mounts==null||!Enum.IsDefined(typeof(Phase),tx.Phase)||!Enum.IsDefined(typeof(HardwareState),tx.Hardware)) throw new InvalidOperationException(L.T("Ungültige Transaktion."));
     tx.Device.Validate();
     var expected=tx.Device.Volumes.SelectMany(v=>v.Letters.Select(l=>l+":"+Guid.Parse(v.VolumeGuid).ToString("D"))).OrderBy(x=>x).ToArray();
-    var actual=tx.Mounts.Select(m=> { if(m==null||!Enum.IsDefined(typeof(MountStep),m.Step)) throw new InvalidOperationException("Ungültiger Mount-Zustand."); Descriptor.ValidateLetter(m.Letter); return m.Letter+":"+Guid.Parse(m.VolumeGuid).ToString("D"); }).OrderBy(x=>x).ToArray();
-    if(!expected.SequenceEqual(actual)) throw new InvalidOperationException("Mount-Daten passen nicht zur gespeicherten Topologie.");
+    var actual=tx.Mounts.Select(m=> { if(m==null||!Enum.IsDefined(typeof(MountStep),m.Step)) throw new InvalidOperationException(L.T("Ungültiger Mount-Zustand.")); Descriptor.ValidateLetter(m.Letter); return m.Letter+":"+Guid.Parse(m.VolumeGuid).ToString("D"); }).OrderBy(x=>x).ToArray();
+    if(!expected.SequenceEqual(actual)) throw new InvalidOperationException(L.T("Mount-Daten passen nicht zur gespeicherten Topologie."));
     if(tx.Phase!=Phase.Completed) {
-     if(!devices.Add(tx.Device.Identity.DeviceId)) throw new InvalidOperationException("Mehrere offene Vorgänge für ein Gerät.");
-     foreach(var m in tx.Mounts) if(!letters.Add(m.Letter)) throw new InvalidOperationException("Buchstabe in mehreren offenen Vorgängen.");
-    } else if(tx.Mounts.Any(m=>m.Step!=MountStep.Restored)) throw new InvalidOperationException("Unvollständiger abgeschlossener Vorgang.");
+     if(!devices.Add(tx.Device.Identity.DeviceId)) throw new InvalidOperationException(L.T("Mehrere offene Vorgänge für ein Gerät."));
+     foreach(var m in tx.Mounts) if(!letters.Add(m.Letter)) throw new InvalidOperationException(L.T("Buchstabe in mehreren offenen Vorgängen."));
+    } else if(tx.Mounts.Any(m=>m.Step!=MountStep.Restored)) throw new InvalidOperationException(L.T("Unvollständiger abgeschlossener Vorgang."));
    }
   }
  }
@@ -106,7 +106,7 @@ namespace HddSpindown.Core {
   static readonly JsonSerializerOptions options=new JsonSerializerOptions {MaxDepth=64,WriteIndented=false};
   public string Serialize(object value) { return JsonSerializer.Serialize(value,value==null?typeof(object):value.GetType(),options); }
   public T Deserialize<T>(string text) {
-   if(text==null||text.Length>MaxLength) throw new InvalidOperationException("JSON fehlt oder überschreitet das Größenlimit.");
+   if(text==null||text.Length>MaxLength) throw new InvalidOperationException(L.T("JSON fehlt oder überschreitet das Größenlimit."));
    return JsonSerializer.Deserialize<T>(text,options);
   }
  }
