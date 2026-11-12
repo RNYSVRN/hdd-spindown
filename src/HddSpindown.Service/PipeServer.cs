@@ -30,19 +30,25 @@ namespace HddSpindown.Service {
    return s;
   }
 
-  public void Start() {
-   loops=new Task[Instances];
-   for(int i=0;i<Instances;i++) { bool first=i==0; loops[i]=Task.Run(()=>Loop(first)); }
+  static NamedPipeServerStream CreateInstance(bool first) {
+   var options=PipeOptions.Asynchronous|PipeOptions.WriteThrough;
+   if(first) options|=(PipeOptions)0x00080000; // FILE_FLAG_FIRST_PIPE_INSTANCE: refuse if another process squats the name.
+   return NamedPipeServerStreamAcl.Create(PipeNames.Service,PipeDirection.InOut,16,PipeTransmissionMode.Message,options,PipeNames.MaxMessageBytes,PipeNames.MaxMessageBytes,Security());
   }
 
-  async Task Loop(bool first) {
+  public void Start() {
+   // The first instance is created synchronously; if the name is already taken by
+   // another process, this throws and the service does not serve a squatted pipe.
+   var first=CreateInstance(true);
+   loops=new Task[Instances];
+   for(int i=0;i<Instances;i++) { var initial=i==0?first:null; loops[i]=Task.Run(()=>Loop(initial)); }
+  }
+
+  async Task Loop(NamedPipeServerStream initial) {
    while(!cancel.IsCancellationRequested) {
-    NamedPipeServerStream pipe=null;
+    NamedPipeServerStream pipe=initial; initial=null;
     try {
-     var options=PipeOptions.Asynchronous|PipeOptions.WriteThrough;
-     if(first) options|=(PipeOptions)0x00080000; // FILE_FLAG_FIRST_PIPE_INSTANCE: refuse if another process squats the name.
-     first=false;
-     pipe=NamedPipeServerStreamAcl.Create(PipeNames.Service,PipeDirection.InOut,16,PipeTransmissionMode.Message,options,PipeNames.MaxMessageBytes,PipeNames.MaxMessageBytes,Security());
+     if(pipe==null) pipe=CreateInstance(false);
      await pipe.WaitForConnectionAsync(cancel.Token).ConfigureAwait(false);
      var client=pipe; pipe=null;
      _=Task.Run(()=>Serve(client));
@@ -66,13 +72,17 @@ namespace HddSpindown.Service {
   void Serve(NamedPipeServerStream pipe) {
    using(pipe) {
     try {
-     bool admin=false; string user="?";
-     pipe.RunAsClient(()=> {
-      using(var id=WindowsIdentity.GetCurrent(TokenAccessLevels.Query)) { admin=TokenCheck.IsAdministratorAccount(id); user=id.Name; }
-     });
+     bool admin=false, identified=false; string user="?";
      pipe.ReadMode=PipeTransmissionMode.Message;
      while(pipe.IsConnected&&!cancel.IsCancellationRequested) {
       var bytes=ReadMessage(pipe); if(bytes==null) break;
+      if(!identified) {
+       // ImpersonateNamedPipeClient only works after data has been read from the pipe.
+       pipe.RunAsClient(()=> {
+        using(var id=WindowsIdentity.GetCurrent(TokenAccessLevels.Query)) { admin=TokenCheck.IsAdministratorAccount(id); user=id.Name; }
+       });
+       identified=true;
+      }
       Response response;
       try {
        var request=Codec.Serializer().Deserialize<Request>(Encoding.UTF8.GetString(bytes));
@@ -82,7 +92,7 @@ namespace HddSpindown.Service {
       var outBytes=Encoding.UTF8.GetBytes(Codec.Serializer().Serialize(response));
       pipe.Write(outBytes,0,outBytes.Length); pipe.Flush();
      }
-    } catch(IOException) { /* client went away */ }
+    } catch(IOException ex) { if(pipe.IsConnected) Log.Warn("Pipe-Client: "+ex); /* otherwise the client went away */ }
     catch(Exception ex) { Log.Error("Pipe-Client",ex); }
    }
   }

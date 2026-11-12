@@ -29,7 +29,7 @@ namespace HddSpindown.Windows {
   public string Guid; public int ExtentCount; public long Offset, Length; public Guid PartitionId;
   public List<string> Letters=new List<string>(); public bool FolderMounts;
  }
- sealed class FsFacts { public string FileSystem; public bool Dirty; public bool? Encrypted; }
+ sealed class FsFacts { public string FileSystem; public bool Dirty, DirtyUnknown; public bool? Encrypted; }
  sealed class Inspection {
   public Descriptor Descriptor; public List<string> Reasons=new List<string>(); public bool Rotational; public int Number;
  }
@@ -138,9 +138,10 @@ namespace HddSpindown.Windows {
    var f=new FsFacts();
    var name=new StringBuilder(261); var fs=new StringBuilder(261); uint serial,max,flags;
    if(Native.GetVolumeInformation(VolumePath(guid,true),name,name.Capacity,out serial,out max,out flags,fs,fs.Capacity)) f.FileSystem=fs.ToString();
-   using(var h=Native.TryOpen(VolumePath(guid,false),0)) {
-    if(h!=null) try { var d=Native.Query(h,Native.FSCTL_IS_VOLUME_DIRTY,null,4,"Dirty-Bit"); f.Dirty=d.Length>=4&&(BitConverter.ToInt32(d,0)&1)!=0; } catch(Win32Exception) { f.Dirty=true; }
-    else f.Dirty=true;
+   // A zero-access volume handle does not reach the file system; FSCTLs need read access.
+   using(var h=Native.TryOpen(VolumePath(guid,false),Native.GENERIC_READ)) {
+    if(h!=null) try { var d=Native.Query(h,Native.FSCTL_IS_VOLUME_DIRTY,null,4,"Dirty-Bit"); f.Dirty=d.Length>=4&&(BitConverter.ToInt32(d,0)&1)!=0; } catch(Win32Exception) { f.DirtyUnknown=true; }
+    else f.DirtyUnknown=true;
    }
    return f;
   }
@@ -222,6 +223,7 @@ namespace HddSpindown.Windows {
     else { fs=ReadFs(vol.Guid); bool enc; fs.Encrypted=encryption==null?(bool?)null:(encryption.TryGetValue(vol.Guid,out enc)?enc:false); if(fsCache!=null) fsCache[vol.Guid]=fs; }
     if(!String.Equals(fs.FileSystem,"NTFS",StringComparison.OrdinalIgnoreCase)) { d.HealthyNtfs=false; r.Reasons.Add("Volume ist nicht NTFS ("+(fs.FileSystem??"unbekannt")+")."); }
     if(fs.Dirty) { d.HealthyNtfs=false; r.Reasons.Add("Dateisystem als fehlerhaft markiert (Dirty-Bit). Bitte zuerst prüfen."); }
+    else if(fs.DirtyUnknown) { d.HealthyNtfs=false; r.Reasons.Add("Dateisystemzustand nicht prüfbar."); }
     if(fs.Encrypted!=false) { d.Encrypted=true; r.Reasons.Add(fs.Encrypted==null?"Verschlüsselungsstatus nicht prüfbar.":"BitLocker-/Geräteverschlüsselung aktiv – in 1.0 nicht unterstützt."); }
     if(protectedVolumes!=null&&protectedVolumes.Contains(vol.Guid)) { d.Protected=true; r.Reasons.Add("Enthält Windows, Programme, Auslagerungsdatei oder Dienstdaten."); }
     list.Add(new Volume {VolumeGuid=vol.Guid,PartitionGuid=p.Id==Guid.Empty?null:p.Id.ToString("D"),Offset=p.Offset,Length=p.Length,Letters=vol.Letters.OrderBy(x=>x).ToArray()});
@@ -246,6 +248,7 @@ namespace HddSpindown.Windows {
     using(var q=Native.TryOpen(DrivePath(n),0)) {
      if(q==null) continue;
      try { dev=ReadDevice(q); } catch { continue; }
+     if(options.AllowVirtualTestDisks&&!dev.IsVirtual) continue; // Test mode never touches physical disks.
      bool candidate=dev.SeekPenalty==true||(dev.IsVirtual&&options.AllowVirtualTestDisks);
      if(!candidate) continue; // SSD/NVMe are hidden from the list.
      if(skip!=null&&!dev.IsVirtual) {
@@ -281,7 +284,11 @@ namespace HddSpindown.Windows {
    for(int n=0;n<MaxDisks;n++) {
     using(var q=Native.TryOpen(DrivePath(n),Native.GENERIC_READ)) {
      if(q==null) continue;
-     try { var dev=ReadDevice(q); var l=ReadLayout(q); if(Id(dev,l)==trustedDeviceId) matches.Add(n); } catch { }
+     try {
+      var dev=ReadDevice(q);
+      if(options.AllowVirtualTestDisks&&!dev.IsVirtual) continue; // Test mode never touches physical disks.
+      var l=ReadLayout(q); if(Id(dev,l)==trustedDeviceId) matches.Add(n);
+     } catch { }
     }
    }
    if(matches.Count==0) throw new IOException("Gerät "+trustedDeviceId+" ist nicht angeschlossen oder nicht lesbar.");

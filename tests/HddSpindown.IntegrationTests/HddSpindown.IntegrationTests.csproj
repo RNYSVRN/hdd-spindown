@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>HddSpindown.IntegrationTests</RootNamespace>
+    <AssemblyName>IntegrationTests</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\HddSpindown.Core\HddSpindown.Core.csproj" />
+    <ProjectReference Include="..\..\src\HddSpindown.Windows\HddSpindown.Windows.csproj" />
+    <ProjectReference Include="..\..\src\HddSpindown.Service\HddSpindown.Service.csproj" />
+  </ItemGroup>
+</Project>

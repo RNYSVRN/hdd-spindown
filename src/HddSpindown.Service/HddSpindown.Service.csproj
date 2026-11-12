@@ -6,7 +6,6 @@
     <AssemblyName>HddSpindown.Service</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>..\..\assets\HDD-Spindown.ico</ApplicationIcon>
-    <SelfContained>true</SelfContained>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\HddSpindown.Core\HddSpindown.Core.csproj" />

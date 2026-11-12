@@ -1,5 +1,6 @@
 ﻿param(
   [switch]$SkipTests,
+  [switch]$IntegrationTests,   # VHD-based tests against the real storage stack (UAC prompt)
   [string]$TestRoot
 )
 # Reproducible build: core tests -> publish service, recovery and app -> MSI -> SHA256SUMS.
@@ -26,6 +27,16 @@ if (-not $SkipTests) {
   if (-not $TestRoot) { $TestRoot = Join-Path $env:TEMP ('HDDSpindown-CoreTests-' + [Guid]::NewGuid().ToString('N')) }
   $tests = Get-ChildItem "$root\tests\HddSpindown.CoreTests\bin\Release" -Recurse -Filter CoreTests.exe | Select-Object -First 1
   Run $tests.FullName @($TestRoot)
+}
+
+if ($IntegrationTests) {
+  Step 'Integrationstests mit Wegwerf-VHDs (Administrator)'
+  Run dotnet @('build', "$root\tests\HddSpindown.IntegrationTests", '-c', 'Release', '-v', 'q', '-nologo')
+  $it = Get-ChildItem "$root\tests\HddSpindown.IntegrationTests\bin\Release" -Recurse -Filter IntegrationTests.exe | Select-Object -First 1
+  $p = Start-Process $it.FullName -Verb RunAs -PassThru -Wait
+  $dir = Get-Content (Join-Path $env:TEMP 'HDDSpindown-IT-last.txt')
+  Get-Content (Join-Path $dir 'integration.log') -Encoding UTF8 | Select-String 'Szenario|Prüfungen|ERGEBNIS|FEHL'
+  if ($p.ExitCode -ne 0) { throw "Integrationstests fehlgeschlagen. Log: $dir\integration.log" }
 }
 
 Step 'Dienst und Recovery-Werkzeug veröffentlichen'

@@ -13,6 +13,7 @@ namespace HddSpindown.Service {
   static string file;
   static bool eventLog;
   public static bool ConsoleEcho;
+  public static Action<string> Sink; // Tests only.
   public static void Init() {
    try { Paths.EnsureProtectedDirectory(Paths.LogDir); file=Path.Combine(Paths.LogDir,"service.log"); } catch { file=null; }
    try { if(!EventLog.SourceExists(Paths.EventSource)) EventLog.CreateEventSource(Paths.EventSource,"Application"); eventLog=true; } catch { eventLog=false; }
@@ -23,6 +24,7 @@ namespace HddSpindown.Service {
   static void Write(string level,string text,EventLogEntryType? entry) {
    string line=DateTime.UtcNow.ToString("O")+" "+level+" "+text.Replace("\r"," ").Replace("\n"," | ");
    if(ConsoleEcho) Console.WriteLine(line);
+   var sink=Sink; if(sink!=null) try { sink(line); } catch {}
    lock(gate) {
     try {
      if(file!=null) {

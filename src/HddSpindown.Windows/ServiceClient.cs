@@ -36,7 +36,7 @@ namespace HddSpindown.Windows {
   // allowConsoleServer: diagnostics build only; accepts a server not registered as service.
   public static Response Send(Request request,int timeoutMs=5000,bool allowConsoleServer=false) {
    request.Version=PipeNames.ProtocolVersion;
-   using(var pipe=new NamedPipeClientStream(".",PipeNames.Service,PipeDirection.InOut,PipeOptions.None,System.Security.Principal.TokenImpersonationLevel.Identification)) {
+   using(var pipe=new NamedPipeClientStream(".",PipeNames.Service,PipeDirection.InOut,PipeOptions.None,System.Security.Principal.TokenImpersonationLevel.Impersonation)) {
     try { pipe.Connect(timeoutMs); }
     catch(TimeoutException ex) { throw new ServiceUnavailableException("Der HDD-Spindown-Dienst antwortet nicht.",ex); }
     catch(IOException ex) { throw new ServiceUnavailableException("Verbindung zum HDD-Spindown-Dienst fehlgeschlagen.",ex); }
