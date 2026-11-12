@@ -42,6 +42,8 @@ Jede HDD erscheint als Karte mit drei getrennten Angaben:
 - **Schonregeln** (Entwurfswerte aus Konzept Abschnitt 9, keine Herstellergarantie): mindestens 30 Minuten Laufzeit nach einer Freigabe, höchstens 4 Standby-Anforderungen je HDD in 24 Stunden. Die Restzeit wird an der Karte angezeigt.
 - **Diagnose** (Menü „…“): Zustand des Dienstes, aller HDDs und offener Vorgänge; Seriennummern gekürzt.
 
+**Infobereich (Tray):** Die App startet bei der Anmeldung nur als Symbol im Infobereich (`--tray`, eingerichtet vom Installer; abschaltbar unter Einstellungen → Apps → Autostart). Linksklick öffnet das Fenster. Der Rechtsklick zeigt jede HDD mit Status und „Schlafen“/„Freigeben“, außerdem „Alle freigeben“ und „Beenden“. Das X im Fenster legt die App in den Infobereich. „Beenden“ schließt nur die Oberfläche – pausierte HDDs bleiben pausiert, weil der Dienst die Sperren hält. Ergebnisse von Aktionen aus dem Menü und Störungen (Dienst nicht erreichbar, Wiederherstellung offen) erscheinen als Windows-Benachrichtigung; normale Ruhephasen erzeugen keine Meldungen.
+
 Die Oberfläche folgt dem Windows-App-Modus (hell/dunkel), nutzt Mica, die Systemakzentfarbe und Segoe Fluent Icons. `HDD Spindown.exe --demo` zeigt eine Vorschau mit simulierten HDDs ohne Dienst und ohne Hardwarezugriff.
 
 ## Zugelassene Geräte
@@ -106,7 +108,6 @@ Ergebnis: `out\HDD-Spindown-1.0.0-x64.msi` und `out\SHA256SUMS.txt`. Details zu 
 - **Pilot (P1.3):** beaufsichtigter Betrieb, danach mindestens sieben Tage unter realistischer Last.
 - **Signatur:** MSI und EXE sind unsigniert; dafür wird ein eigenes Code-Signing-Zertifikat benötigt.
 - **Wartungssperren** für laufende Backups/SMART-Tests (Konzept Abschnitt 9) und eine Erkennung unerwarteten Aufwachens sind nicht umgesetzt.
-- **Kein Infobereich-Symbol:** Der Dienst meldet Störungen im Ereignisprotokoll; die App zeigt sie beim Öffnen.
 - Unabhängige Prüfung der Gerätezugriffe und der Recovery-Logik.
 
 Das Tool ersetzt kein Backup, verhindert keine mechanischen Defekte und sagt keine Lebensdauer zu.

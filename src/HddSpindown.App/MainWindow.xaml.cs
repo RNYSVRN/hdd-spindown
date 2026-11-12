@@ -43,9 +43,68 @@ namespace HddSpindown.App {
    timer.Start();
    LegacyMenuItem.IsEnabled=File.Exists(LegacyFile);
    Activated+=FirstActivated;
-   Closed+=(s,e)=>timer.Stop();
+   tray=new TrayIcon(Path.Combine(AppContext.BaseDirectory,"Assets","HDD-Spindown.ico")) {Activate=ShowFromTray,BuildMenu=BuildTrayMenu};
+   // Closing the window only hides it; the service keeps the locks either way.
+   AppWindow.Closing+=(s,e)=> { if(!quitting) { e.Cancel=true; HideToTray(); } };
+   Closed+=(s,e)=> { timer.Stop(); tray.Dispose(); };
   }
   [DllImport("user32.dll")] static extern uint GetDpiForWindow(IntPtr hwnd);
+  [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr hwnd);
+
+  // ---------- notification area ----------
+  readonly TrayIcon tray;
+  bool quitting, visible, hideNoticeShown, lastProblem;
+
+  public void StartHidden() {
+   visible=false; timer.Interval=TimeSpan.FromSeconds(15);
+   DispatcherQueue.TryEnqueue(async()=>await Poll(Ops.List));
+  }
+  public void ShowFromTray() {
+   bool first=!visible&&!everShown;
+   visible=true; everShown=true; timer.Interval=TimeSpan.FromSeconds(4);
+   AppWindow.Show(); Activate();
+   SetForegroundWindow(WinRT.Interop.WindowNative.GetWindowHandle(this));
+   if(!first) _=Poll();
+  }
+  bool everShown;
+  public void MarkShown() { visible=true; everShown=true; }
+  void HideToTray() {
+   AppWindow.Hide(); visible=false; timer.Interval=TimeSpan.FromSeconds(15);
+   if(!hideNoticeShown) { hideNoticeShown=true; tray.Notify("HDD Spindown läuft im Infobereich weiter","Pausierte HDDs bleiben pausiert – die Sperren hält der Windows-Dienst. Rechtsklick auf das Symbol für Schlafen/Freigeben."); }
+  }
+  void Quit() {
+   quitting=true; timer.Stop();
+   tray.Dispose();
+   Close();
+   Application.Current.Exit();
+  }
+
+  IList<TrayMenuItem> BuildTrayMenu() {
+   var items=new List<TrayMenuItem> {new TrayMenuItem {Text="HDD Spindown öffnen",Bold=true,Invoke=ShowFromTray},TrayMenuItem.Line()};
+   if(!serviceReady) items.Add(new TrayMenuItem {Text="Dienst nicht bereit",Enabled=false});
+   foreach(var d in Disks) {
+    if(d.Action==DiskAction.None) { items.Add(new TrayMenuItem {Text=d.Title+"  –  nicht zugelassen",Enabled=false}); continue; }
+    var item=d;
+    string verb=d.Action==DiskAction.Sleep?"Schlafen":"Freigeben";
+    string state=d.IsPaused?"pausiert":"verfügbar";
+    items.Add(new TrayMenuItem {Text=d.Title+"  ("+state+")  –  "+verb,Enabled=d.ActionEnabled,Invoke=()=>OnDiskAction(item)});
+   }
+   items.Add(TrayMenuItem.Line());
+   items.Add(new TrayMenuItem {Text="Alle freigeben",Enabled=!busy&&serviceReady&&Disks.Any(x=>x.IsPaused),Invoke=()=>ReleaseAll_Click(null,null)});
+   items.Add(TrayMenuItem.Line());
+   items.Add(new TrayMenuItem {Text="Beenden (pausierte HDDs bleiben pausiert)",Invoke=Quit});
+   return items;
+  }
+
+  void UpdateTray(Response r) {
+   int total=r?.Devices?.Length??0, paused=r?.Devices?.Count(v=>v.Operation!=null)??0;
+   bool problem=r==null||!r.StoreHealthy||r.RecoveryPending;
+   string text=r==null?"HDD Spindown · Dienst nicht erreichbar":"HDD Spindown · "+paused+" von "+total+" pausiert"+(r.RecoveryPending?" · Wiederherstellung offen":"");
+   tray.SetTooltip(text);
+   // Important faults are announced once per transition, never on normal sleep phases.
+   if(problem&&!lastProblem&&!visible) tray.Notify(r==null?"HDD-Spindown-Dienst nicht erreichbar":"HDD Spindown: Wiederherstellung offen",r==null?"Pausieren und Freigeben sind gerade nicht möglich.":"Mindestens eine HDD ist nicht vollständig wiederhergestellt. Zum Ansehen auf das Symbol klicken.",true);
+   lastProblem=problem;
+  }
 
   // Caption buttons must follow the app theme, not only the system theme.
   void ApplyCaptionColors() {
@@ -61,6 +120,7 @@ namespace HddSpindown.App {
 
   async void FirstActivated(object sender,WindowActivatedEventArgs e) {
    Activated-=FirstActivated;
+   MarkShown();
    await Poll(Ops.Refresh);
    if(File.Exists(LegacyFile)&&serviceReady) {
     try { if(LegacyImport.ReadFile(LegacyFile).Length>0) ShowResult(InfoBarSeverity.Warning,"Ausstehende Zuordnungen aus Version 0.3","Die alte Version hat Laufwerksbuchstaben entfernt, die noch nicht wiederhergestellt sind. Über „…“ → „Zuordnungen aus Version 0.3 übernehmen“ stellt der Dienst sie wieder her.",false); } catch {}
@@ -93,6 +153,7 @@ namespace HddSpindown.App {
    TitleState.Text="";
    foreach(var d in Disks) d.Update(Snapshot(d),true,false,suspended);
    UpdateButtons();
+   UpdateTray(null);
   }
   DeviceView Snapshot(DiskItem item) { return last?.Devices?.FirstOrDefault(v=>Key(v)==item.Key)??new DeviceView {Disk=new DiskInfo {Letters=item.Letters,Model=item.Model},Present=true}; }
 
@@ -130,6 +191,7 @@ namespace HddSpindown.App {
    }
    EmptyText.Visibility=views.Count==0?Visibility.Visible:Visibility.Collapsed;
    int paused=views.Count(v=>v.Operation!=null);
+   UpdateTray(r);
    Summary.Text=views.Count==0?"Keine SATA-HDDs":views.Count+(views.Count==1?" SATA-HDD":" SATA-HDDs")+"  ·  "+paused+" pausiert"+(views.Any(v=>v.Operation!=null&&v.Operation.Phase==Phase.RecoveryRequired)?"  ·  Wiederherstellung offen":"");
    UpdateButtons();
   }
@@ -156,6 +218,8 @@ namespace HddSpindown.App {
 
   void ShowResult(InfoBarSeverity severity,string title,string message,bool autoClose=true) {
    ResultBar.Severity=severity; ResultBar.Title=title; ResultBar.Message=message; ResultBar.IsOpen=true;
+   // Actions started from the tray report their outcome there (progress notes excluded).
+   if(!visible&&severity!=InfoBarSeverity.Informational) tray.Notify(title,message,severity==InfoBarSeverity.Warning,severity==InfoBarSeverity.Error);
   }
 
   // ---------- actions ----------

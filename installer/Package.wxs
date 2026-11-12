@@ -65,6 +65,11 @@
                   Target="[AppDir]HDD Spindown.exe" WorkingDirectory="AppDir" Icon="AppIcon" />
         <RegistryValue Root="HKLM" Key="Software\HDD Spindown" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
       </Component>
+      <!-- Tray icon at logon for every user; can be switched off in Settings > Apps > Startup. -->
+      <Component Id="AutostartTray" Guid="3F8A1C52-6D0E-4B79-9E21-5A7C4D3B8F12">
+        <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="HDD Spindown"
+                       Type="string" Value="&quot;[AppDir]HDD Spindown.exe&quot; --tray" KeyPath="yes" />
+      </Component>
     </ComponentGroup>
 
     <!-- Uninstall/upgrade gate: all HDDs must be released and no transaction may be open. -->
