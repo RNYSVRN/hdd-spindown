@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>HddSpindown.Tests</RootNamespace>
+    <AssemblyName>CoreTests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\HddSpindown.Core\HddSpindown.Core.csproj" />
+  </ItemGroup>
+</Project>
