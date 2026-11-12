@@ -1,114 +1,96 @@
-# HDD Spindown 1.0
+# HDD Spindown
 
-Stand: 12. November 2026 · Version 1.0.0 (Release-Kandidat) · **Noch keine Produktivfreigabe:** Hardwarequalifikation und Pilotbetrieb stehen aus (siehe unten).
+**Put internal SATA data HDDs to sleep on Windows 10/11 – safely, and keep them asleep.**
+[Deutsche Version](README.de.md)
 
-HDD Spindown sperrt interne SATA-Daten-HDDs, entfernt ihre Laufwerksbuchstaben aus „Dieser PC“ und fordert Standby an. Ab 1.0 hält ein **Windows-Dienst** die Sperren. Die Oberfläche kann geschlossen werden, abstürzen oder der Benutzer kann sich abmelden – pausierte HDDs bleiben pausiert. Nach Dienstabsturz, Neustart oder Stromausfall stellt der Dienst beim nächsten Start die ursprüngliche Verfügbarkeit wieder her.
+HDD Spindown locks all volumes of a selected HDD, removes its drive letters from *This PC* and sends ATA STANDBY IMMEDIATE. While the drive is paused, Explorer, indexers and ordinary programs cannot touch it, so it is not woken up again every few minutes. **Release** gives every HDD exactly the same drive letters back.
 
-Grundlage ist das [Produktionskonzept](PRODUKTIONSKONZEPT.md); die Sicherheitsregeln aus Abschnitt 3 sind unverändert umgesetzt.
+A **Windows service** holds the locks. You can close the window, sign out or exit the app – paused HDDs stay paused. After a service crash, a restart or a power failure the service restores the original drive letters at the next start, based on a write-ahead journal. Drive letters that are in use are never overwritten.
+
+![HDD Spindown](docs/screenshot.png)
+
+> **Status:** 1.1.0 release candidate. The safety core is tested in simulation and against the real Windows storage stack with disposable VHDs. Hardware qualification on many HDD models and a long-term pilot are still pending – see [Limitations](#limitations).
+
+## Features
+
+- Windows 11 style app (WinUI 3, Mica, accent color, light/dark), **German and English**, switchable at runtime
+- Notification area icon with Sleep/Release per HDD; starts with Windows
+- Three separate facts per HDD: **access** (locked/released), **Explorer** (visible/hidden), **hardware** (standby requested/unknown) – the motor state is never polled, so the drive is not woken
+- Protection rules against rapid start/stop cycles: at least 30 minutes of runtime after a release, at most 4 standby requests per 24 hours (conservative defaults, not manufacturer limits)
+- Recovery without UI: `HddSpindown.Recovery.exe` (status, list, recover, export, import of 0.3.x journals)
+- Installer with language selection (Setup.exe) or plain MSI; uninstall/upgrade is blocked while an operation cannot be restored
 
 ## Installation
 
-1. Alte Version 0.3.x beenden („Freigeben und beenden“ im Infobereich).
-2. `out\HDD-Spindown-1.0.0-x64.msi` ausführen und die Administratorabfrage bestätigen.
-3. „HDD Spindown“ aus dem Startmenü öffnen. Die App selbst läuft **ohne** Administratorrechte; steuern dürfen Konten der lokalen Administratorengruppe.
-4. Falls die alte Version noch Laufwerksbuchstaben entfernt hatte, bietet die App „Zuordnungen aus Version 0.3 übernehmen“ an (Menü „…“).
+1. Download `HDD-Spindown-<version>-Setup.exe` from [Releases](../../releases).
+2. Run it, choose **Deutsch** or **English** and confirm the administrator prompt.
+3. Open *HDD Spindown* from the Start menu. The app itself runs **without** administrator rights; only members of the local Administrators group may control HDDs.
 
-Installiert werden:
+The files are not code-signed yet, so Windows SmartScreen may show a warning (“More info” → “Run anyway”). Check the SHA-256 against `SHA256SUMS.txt` in the release.
 
-| Pfad | Inhalt |
-|---|---|
-| `C:\Program Files\HDD Spindown\Service\` | Dienst `HddSpindown` (LocalSystem, Autostart) und `HddSpindown.Recovery.exe` |
-| `C:\Program Files\HDD Spindown\App\` | WinUI-3-Oberfläche |
-| `C:\ProgramData\HDD Spindown\state\` | Zustandsspeicher (2 Kopien, SHA-256), nur SYSTEM/Administratoren |
-| `C:\ProgramData\HDD Spindown\logs\` | Begrenztes Protokoll (5 × 1 MiB); Störungen zusätzlich im Ereignisprotokoll „Anwendung“, Quelle „HDD Spindown“ |
+Unattended: `Setup.exe /lang en /quiet` or `msiexec /i HDD-Spindown-<version>-x64.msi TRANSFORMS=:1033 APPLANGUAGE=en /qn`.
 
-Deinstallation und Update prüfen vorher alle Vorgänge: Der Installer gibt pausierte HDDs frei und **bricht ab**, wenn ein Vorgang nicht wiederhergestellt werden kann. Der Zustandsspeicher und die Protokolle unter ProgramData bleiben bei der Deinstallation erhalten.
+## Supported drives
 
-## Bedienung
+Internal HDDs attached directly via SATA, GPT partition table, simple error-free NTFS data volumes.
 
-Jede HDD erscheint als Karte mit drei getrennten Angaben:
+Not supported (shown with the reason, SSD/NVMe hidden): SSD/NVMe, USB, RAID/Storage Spaces, dynamic and MBR disks, disks with Windows, programs or the page file, BitLocker-encrypted volumes, volumes with the dirty bit set.
 
-| Angabe | Bedeutung |
-|---|---|
-| **Zugriff** | Freigegeben / Volumes gesperrt / Sperrstatus unklar |
-| **Explorer** | Sichtbar / Ausgeblendet / Wiederherstellung offen |
-| **Hardware** | Nicht überwacht / Standby angefordert / Unbekannt (nach Neustart oder Energiesparmodus) |
+## How it stays safe
 
-„Standby angefordert“ heißt: Die HDD hat den Befehl bestätigt. Der Motorzustand wird **nicht gemessen**, damit die HDD nicht aufgeweckt wird.
+The rules from the [production concept](docs/PRODUKTIONSKONZEPT.md) (German) are enforced in the core:
 
-- **Schlafen**: sperrt alle Volumes, entfernt die Laufwerksbuchstaben, sendet ATA STANDBY IMMEDIATE. Dateien und Programme auf der HDD müssen geschlossen sein – es wird nichts zwangsweise geschlossen oder ausgehängt.
-- **Freigeben**: löst die Sperren und ordnet dieselben Buchstaben denselben Volumes zu. Belegte Buchstaben werden nie überschrieben.
-- **Alle freigeben**: nacheinander mit 5 s Abstand, damit nicht alle HDDs gleichzeitig anlaufen.
-- **Schonregeln** (Entwurfswerte aus Konzept Abschnitt 9, keine Herstellergarantie): mindestens 30 Minuten Laufzeit nach einer Freigabe, höchstens 4 Standby-Anforderungen je HDD in 24 Stunden. Die Restzeit wird an der Karte angezeigt.
-- **Hilfe** (Menü „…“ oder F1): eingebaute Anleitung zu Funktionen, Statusanzeigen, Schonregeln, Sonderfällen, unterstützten HDDs und Recovery (mit kopierbaren Befehlen).
-- **Diagnose** (Menü „…“): Zustand des Dienstes, aller HDDs und offener Vorgänge; Seriennummern gekürzt.
+- No standby without a successful lock of **all** volumes of the drive; nothing is closed or dismounted by force.
+- No drive letter is removed before its restore data is durably written (two SHA-256-checked copies, intent records before every external step).
+- The device identity (model, serial, firmware, GPT disk GUID, partition layout) is re-checked on the opened device before every action – never just a disk number or drive letter.
+- After a crash, availability is restored; an old sleep request is **not** repeated. Conflicts (letter now taken, drive missing) stay open per drive and are reported, never guessed.
+- The service exposes a local named pipe with a small fixed set of commands (no paths, ATA commands or scripts); clients verify that the pipe belongs to the registered service.
 
-**Infobereich (Tray):** Die App startet bei der Anmeldung nur als Symbol im Infobereich (`--tray`, eingerichtet vom Installer; abschaltbar unter Einstellungen → Apps → Autostart). Linksklick öffnet das Fenster. Der Rechtsklick zeigt jede HDD mit Status und „Schlafen“/„Freigeben“, außerdem „Alle freigeben“ und „Beenden“. Das X im Fenster legt die App in den Infobereich. „Beenden“ schließt nur die Oberfläche – pausierte HDDs bleiben pausiert, weil der Dienst die Sperren hält. Ergebnisse von Aktionen aus dem Menü und Störungen (Dienst nicht erreichbar, Wiederherstellung offen) erscheinen als Windows-Benachrichtigung; normale Ruhephasen erzeugen keine Meldungen.
+## Emergency recovery
 
-Die Oberfläche folgt dem Windows-App-Modus (hell/dunkel), nutzt Mica, die Systemakzentfarbe und Segoe Fluent Icons. `HDD Spindown.exe --demo` zeigt eine Vorschau mit simulierten HDDs ohne Dienst und ohne Hardwarezugriff.
-
-## Zugelassene Geräte
-
-Nur interne SATA-HDDs (Seek-Penalty bestätigt) mit GPT und einfachen, fehlerfreien NTFS-Datenvolumes. Abgelehnt mit Begründung an der Karte: SSD/NVMe (ausgeblendet), USB/RAID-Controller, MBR, dynamische Datenträger/Storage Spaces, EFI-/System-/Programm-/Auslagerungs- und Dienstdaten-Datenträger, BitLocker oder nicht prüfbarer Verschlüsselungsstatus, gesetztes Dirty-Bit, über mehrere Bereiche verteilte Volumes.
-
-## Recovery ohne Oberfläche
-
-Als Administrator in einer Konsole:
+In a command prompt **as administrator**:
 
 ```text
-"C:\Program Files\HDD Spindown\Service\HddSpindown.Recovery.exe" status
-"C:\Program Files\HDD Spindown\Service\HddSpindown.Recovery.exe" list
-sc stop HddSpindown          (Dienst stellt beim Beenden alle Buchstaben wieder her)
-"C:\Program Files\HDD Spindown\Service\HddSpindown.Recovery.exe" recover
-"C:\Program Files\HDD Spindown\Service\HddSpindown.Recovery.exe" import-legacy
-"C:\Program Files\HDD Spindown\Service\HddSpindown.Recovery.exe" export
+sc stop HddSpindown                                      (restores all drive letters while stopping)
+"C:\Program Files\HDD Spindown\Service\HddSpindown.Recovery.exe" status --lang en
+"C:\Program Files\HDD Spindown\Service\HddSpindown.Recovery.exe" recover --lang en
+sc start HddSpindown
 ```
 
-`recover` verwendet denselben geprüften Kern wie der Dienst und arbeitet nur bei gestopptem Dienst. Es gibt keine geratenen Zuordnungen, keine Ersatzbuchstaben und keine CHKDSK-Schreibzugriffe.
+The built-in help (`…` → *Help*, or F1) explains every state and situation.
 
-## Verhalten bei Windows-Ereignissen
+## Building
 
-| Ereignis | Verhalten |
-|---|---|
-| App geschlossen / abgestürzt, Abmeldung | Dienst hält die Sperren |
-| Dienst beendet (`sc stop`), Herunterfahren | Alle Buchstaben werden wiederhergestellt |
-| Dienstabsturz | Neustart nach 5 s, 30 s, 120 s, danach keine weitere Aktion; beim Start Wiederherstellung |
-| Stromausfall | Wiederherstellung beim nächsten Dienststart; kein erneuter Standby |
-| Energiesparmodus | Keine neuen Vorgänge; nach Resume Abgleich der Sperren, Hardwarezustand „Unbekannt“; nicht mehr prüfbare Sperren → ursprüngliche Verfügbarkeit |
-| HDD fehlt beim Start | Vorgang bleibt offen; der Dienst versucht alle 2 Minuten erneut (ohne pausierte HDDs anzufassen) |
-| Schreibfehler im Zustandsspeicher | Keine weiteren Geräteänderungen; Dienst startet zum Abgleich neu |
-
-## Aufbau
-
-```text
-src/HddSpindown.Core       Zustandsautomat, Transaktionsspeicher, Schonregeln, IPC-Protokoll (aus M1)
-src/HddSpindown.Windows    Windows-Adapter (Identität, GPT, Volumes, Sperren, Mount-Manager, ATA), Pipe-Client
-src/HddSpindown.Service    Windows-Dienst, Named Pipe mit ACL, Ereignisse, Protokoll
-src/HddSpindown.Recovery   Recovery-Werkzeug (Konsole)
-src/HddSpindown.App        WinUI-3-Oberfläche
-tests/                     Kern-Tests (simuliert) und Integrationstests (Wegwerf-VHDs)
-installer/                 WiX-5-Paket
-```
-
-Sicherheit der Steuerung: Die Named Pipe ist lokal (Netzwerk verweigert), nur SYSTEM, Administratoren und interaktive Benutzer dürfen verbinden; steuernde Aufträge verlangen ein Konto der Administratorengruppe (auch mit UAC-gefiltertem Token). Der Client prüft, dass der Pipe-Server der registrierte Dienst ist. Aufträge sind auf `pause`/`release`/`releaseAll`/`importLegacy` mit Gerätekennung begrenzt – keine Pfade, ATA-Befehle oder Skripte.
-
-## Build
-
-Voraussetzung: .NET 8 SDK. Pakete (Windows App SDK, WiX) werden beim ersten Build von nuget.org geladen.
+Requirements: Windows 10/11 x64, .NET 8 SDK. NuGet packages (Windows App SDK, WiX 5) are restored automatically.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\Build.ps1                    # Kern-Tests, Veröffentlichung, MSI
-powershell -ExecutionPolicy Bypass -File .\Build.ps1 -IntegrationTests  # zusätzlich VHD-Tests (UAC)
+powershell -ExecutionPolicy Bypass -File .\Build.ps1                    # translation check, core tests, MSI, Setup.exe
+powershell -ExecutionPolicy Bypass -File .\Build.ps1 -IntegrationTests  # plus VHD tests against the real storage stack (UAC)
 ```
 
-Ergebnis: `out\HDD-Spindown-1.0.0-x64.msi` und `out\SHA256SUMS.txt`. Details zu den Tests: [TEST-REPORT.md](TEST-REPORT.md).
+Output in `out\`: `HDD-Spindown-<version>-Setup.exe`, `HDD-Spindown-<version>-x64.msi`, `SHA256SUMS.txt`.
 
-## Offen bis zur Produktivfreigabe
+| Project | Purpose |
+|---|---|
+| `src/HddSpindown.Core` | State machine, durable journal, protection rules, IPC protocol, language catalog |
+| `src/HddSpindown.Windows` | Windows adapter: identity, GPT, volumes, locks, mount manager, ATA standby; pipe client |
+| `src/HddSpindown.Service` | Windows service, named pipe with ACL, power/shutdown events, logging |
+| `src/HddSpindown.Recovery` | Console recovery tool using the same core |
+| `src/HddSpindown.App` | WinUI 3 app with tray icon and built-in help |
+| `tests/` | Simulated core tests (incl. real process kills) and VHD integration tests |
+| `installer/`, `setup/` | WiX 5 MSI (de-DE + en-US transform) and the language-selection Setup.exe |
 
-- **Hardwarequalifikation (P1.1):** ATA-Standby, Freigabe und Aufwachverhalten an den echten HDD-Modellen und Controllern prüfen. Die Schonregeln sind generische Entwurfswerte; modellbezogene Profile fehlen.
-- **Pilot (P1.3):** beaufsichtigter Betrieb, danach mindestens sieben Tage unter realistischer Last.
-- **Signatur:** MSI und EXE sind unsigniert; dafür wird ein eigenes Code-Signing-Zertifikat benötigt.
-- **Wartungssperren** für laufende Backups/SMART-Tests (Konzept Abschnitt 9) und eine Erkennung unerwarteten Aufwachens sind nicht umgesetzt.
-- Unabhängige Prüfung der Gerätezugriffe und der Recovery-Logik.
+Translations: German source text is the key; English lives in `src/HddSpindown.Core/Localization*.cs`. `tools/Check-Localization.ps1` fails the build on missing or duplicate entries.
 
-Das Tool ersetzt kein Backup, verhindert keine mechanischen Defekte und sagt keine Lebensdauer zu.
+## Limitations
+
+- **Hardware qualification:** ATA standby, release and wake-up behaviour must be verified on each HDD model/controller. The protection rules are generic defaults.
+- The motor state is not measured; tools with direct device access (SMART tools, controller software) can still wake a paused drive – the lock stays in place.
+- Not code-signed yet. No maintenance locks for running backups/SMART tests yet.
+- **Not a substitute for a backup.** No guarantees about drive lifetime.
+
+Test details: [docs/TEST-REPORT.md](docs/TEST-REPORT.md) (German). Changes: [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+[MIT](LICENSE) – provided “as is”, without warranty of any kind.
