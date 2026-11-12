@@ -18,7 +18,8 @@ namespace HddSpindown.Service {
   readonly Engine engine;
   readonly CancellationTokenSource cancel=new CancellationTokenSource();
   Task[] loops;
-  public PipeServer(Engine e) { engine=e; }
+  readonly string name;
+  public PipeServer(Engine e,string pipeName=PipeNames.Service) { engine=e; name=pipeName; }
 
   static PipeSecurity Security() {
    var s=new PipeSecurity();
@@ -30,10 +31,10 @@ namespace HddSpindown.Service {
    return s;
   }
 
-  static NamedPipeServerStream CreateInstance(bool first) {
+  NamedPipeServerStream CreateInstance(bool first) {
    var options=PipeOptions.Asynchronous|PipeOptions.WriteThrough;
    if(first) options|=(PipeOptions)0x00080000; // FILE_FLAG_FIRST_PIPE_INSTANCE: refuse if another process squats the name.
-   return NamedPipeServerStreamAcl.Create(PipeNames.Service,PipeDirection.InOut,16,PipeTransmissionMode.Message,options,PipeNames.MaxMessageBytes,PipeNames.MaxMessageBytes,Security());
+   return NamedPipeServerStreamAcl.Create(name,PipeDirection.InOut,16,PipeTransmissionMode.Message,options,PipeNames.MaxMessageBytes,PipeNames.MaxMessageBytes,Security());
   }
 
   public void Start() {

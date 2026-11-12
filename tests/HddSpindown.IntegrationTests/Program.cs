@@ -220,9 +220,10 @@ namespace HddSpindown.IntegrationTests {
    var engine=new HddSpindown.Service.Engine(b,skip=>b.List(skip),Path.Combine(root,"state-engine"),PowerPolicy.None(),TimeSpan.Zero);
    engine.Start();
    Check(engine.Ready,"Engine nach Wiederherstellungsabgleich bereit");
-   var pipe=new HddSpindown.Service.PipeServer(engine); pipe.Start();
+   const string testPipe="HddSpindown.Service.v1.integrationtest";
+   var pipe=new HddSpindown.Service.PipeServer(engine,testPipe); pipe.Start();
    try {
-    var list=ServiceClient.Send(new Request {Op=Ops.List},5000,allowConsoleServer:true);
+    var list=ServiceClient.Send(new Request {Op=Ops.List},5000,allowConsoleServer:true,pipeName:testPipe);
     var view=list.Devices.SingleOrDefault(v=>v.Disk.DeviceId==t.DeviceId);
     Check(list.Ok&&view!=null&&view.Disk.Eligible&&list.StoreHealthy,"Über die Pipe: Testgerät gelistet und zugelassen");
     var denied=engine.Handle(new Request {Version=1,Op=Ops.Pause,DeviceId=t.DeviceId,RequestId=Guid.NewGuid().ToString("D")},false);
@@ -233,14 +234,14 @@ namespace HddSpindown.IntegrationTests {
     var forged=engine.Handle(new Request {Version=1,Op=Ops.Pause,DeviceId="SATA:FREMD:123",RequestId=Guid.NewGuid().ToString("D")},true);
     Check(!forged.Ok&&forged.ErrorKind=="NotFound","Unbekannte Gerätekennung abgelehnt");
     string rid=Guid.NewGuid().ToString("D");
-    var paused=ServiceClient.Send(new Request {Op=Ops.Pause,DeviceId=t.DeviceId,RequestId=rid},5000,allowConsoleServer:true);
+    var paused=ServiceClient.Send(new Request {Op=Ops.Pause,DeviceId=t.DeviceId,RequestId=rid},5000,allowConsoleServer:true,pipeName:testPipe);
     Check(paused.Ok,"Über die Pipe pausiert: "+(paused.Error??paused.Messages.FirstOrDefault()));
     Check(t.Letters.All(l=>b.LookupLetter(l)==null),"Buchstaben entfernt");
-    var again=ServiceClient.Send(new Request {Op=Ops.Pause,DeviceId=t.DeviceId,RequestId=rid},5000,allowConsoleServer:true);
+    var again=ServiceClient.Send(new Request {Op=Ops.Pause,DeviceId=t.DeviceId,RequestId=rid},5000,allowConsoleServer:true,pipeName:testPipe);
     Check(again.Ok,"Doppelter Auftrag (gleiche Request-ID) idempotent");
     var op=again.Devices.Single(v=>v.Disk.DeviceId==t.DeviceId).Operation;
     Check(op!=null&&op.Access==AccessState.Locked&&op.LettersMissing.Length==t.Letters.Length,"Status getrennt: gesperrt, ausgeblendet");
-    var released=ServiceClient.Send(new Request {Op=Ops.Release,DeviceId=t.DeviceId},5000,allowConsoleServer:true);
+    var released=ServiceClient.Send(new Request {Op=Ops.Release,DeviceId=t.DeviceId},5000,allowConsoleServer:true,pipeName:testPipe);
     Check(released.Ok,"Über die Pipe freigegeben");
     AssertOriginal(b,t,"Nach Freigabe über Pipe");
     var p2=engine.Handle(new Request {Version=1,Op=Ops.Pause,DeviceId=t.DeviceId,RequestId=Guid.NewGuid().ToString("D")},true);

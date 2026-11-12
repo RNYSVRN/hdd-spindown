@@ -1,10 +1,14 @@
 <Project Sdk="WixToolset.Sdk/5.0.2">
   <PropertyGroup>
-    <OutputName>HDD-Spindown-1.0.1-x64</OutputName>
+    <OutputName>HDD-Spindown</OutputName>
     <Platform>x64</Platform>
     <InstallerPlatform>x64</InstallerPlatform>
+    <Cultures>de-DE;en-US</Cultures>
     <PublishRoot Condition="'$(PublishRoot)'==''">..\out\publish</PublishRoot>
-    <DefineConstants>ServicePublish=$(PublishRoot)\Service;AppPublish=$(PublishRoot)\App;AssetsDir=..\assets</DefineConstants>
+    <ProductVersion Condition="'$(ProductVersion)'==''">1.1.0.0</ProductVersion>
+    <!-- Must be identical for both cultures (language transform) and new for every version; Build.ps1 derives it from the version. -->
+    <ProductCode Condition="'$(ProductCode)'==''">*</ProductCode>
+    <DefineConstants>ServicePublish=$(PublishRoot)\Service;AppPublish=$(PublishRoot)\App;AssetsDir=..\assets;ProductVersion=$(ProductVersion);ProductCode=$(ProductCode)</DefineConstants>
     <SuppressValidation>false</SuppressValidation>
     <!-- ICE03: Windows App SDK DLLs carry language ids MSI does not know (harmless).
          ICE38/43/57: known false positives for a per-machine Start menu shortcut. -->
@@ -12,5 +16,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
   </ItemGroup>
 </Project>

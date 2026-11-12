@@ -1,27 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Built once per culture (de-DE, en-US). Build.ps1 embeds the English build as
+     language transform :1033 into the German base MSI; Setup.exe selects it. -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
-     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <Package Name="HDD Spindown"
            Manufacturer="HDD Spindown"
-           Version="1.0.1.0"
+           Version="$(ProductVersion)"
+           ProductCode="$(ProductCode)"
            UpgradeCode="6B1E5D2A-3C47-4F0E-9B8A-2D5C7E91A410"
            Scope="perMachine"
-           Language="1031"
-           Codepage="65001"
+           Language="!(loc.Language)"
            InstallerVersion="500">
-    <SummaryInformation Description="HDD Spindown – Windows-Dienst und Oberfläche" Manufacturer="HDD Spindown" />
+    <SummaryInformation Description="!(loc.Description)" Manufacturer="HDD Spindown" />
 
     <!-- Old version is removed first; its pre-uninstall check must pass (open transactions abort). -->
-    <MajorUpgrade Schedule="afterInstallInitialize"
-                  DowngradeErrorMessage="Eine neuere Version von HDD Spindown ist bereits installiert." />
+    <MajorUpgrade Schedule="afterInstallInitialize" DowngradeErrorMessage="!(loc.DowngradeError)" />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
     <Icon Id="AppIcon" SourceFile="$(AssetsDir)\HDD-Spindown.ico" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon" />
-    <Property Id="ARPNOMODIFY" Value="1" />
-    <Property Id="ARPCOMMENTS" Value="Sperrt interne SATA-Daten-HDDs, blendet sie aus und fordert Standby an. Recovery: Service\HddSpindown.Recovery.exe" />
+    <Property Id="ARPCOMMENTS" Value="!(loc.ArpComments)" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/RNYSVRN/hdd-spindown" />
+    <!-- Default UI language of the app (de/en); set by Setup.exe. Empty = Windows language. -->
+    <Property Id="APPLANGUAGE" Secure="yes" />
 
-    <Launch Condition="VersionNT64 AND VersionNT &gt;= 603" Message="HDD Spindown benötigt Windows 10 oder 11 (64 Bit)." />
+    <Launch Condition="VersionNT64 AND VersionNT &gt;= 603" Message="!(loc.LaunchCondition)" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="HDD Spindown">
@@ -42,7 +46,7 @@
         <ServiceInstall Id="SpindownService"
                         Name="HddSpindown"
                         DisplayName="HDD Spindown"
-                        Description="Hält Volume-Sperren pausierter SATA-HDDs und stellt Laufwerksbuchstaben nach Absturz, Neustart oder Energiesparmodus wieder her."
+                        Description="!(loc.ServiceDescription)"
                         Type="ownProcess"
                         Start="auto"
                         ErrorControl="normal"
@@ -61,7 +65,7 @@
 
     <ComponentGroup Id="Shortcuts" Directory="ProgramMenuFolder">
       <Component Id="StartMenuShortcut" Guid="7E2D4A61-0B9C-4F35-A8D7-3C1E5B92F604">
-        <Shortcut Id="AppShortcut" Name="HDD Spindown" Description="SATA-HDDs pausieren und freigeben"
+        <Shortcut Id="AppShortcut" Name="HDD Spindown" Description="!(loc.ShortcutDescription)"
                   Target="[AppDir]HDD Spindown.exe" WorkingDirectory="AppDir" Icon="AppIcon" />
         <RegistryValue Root="HKLM" Key="Software\HDD Spindown" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
       </Component>
@@ -69,6 +73,10 @@
       <Component Id="AutostartTray" Guid="3F8A1C52-6D0E-4B79-9E21-5A7C4D3B8F12">
         <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="HDD Spindown"
                        Type="string" Value="&quot;[AppDir]HDD Spindown.exe&quot; --tray" KeyPath="yes" />
+      </Component>
+      <!-- Language chosen in Setup.exe becomes the default for all users (each user can change it in the app). -->
+      <Component Id="DefaultLanguage" Guid="9B4E2C17-5A3D-4E8F-B061-2C7D9A4E5F38" Condition="APPLANGUAGE">
+        <RegistryValue Root="HKLM" Key="Software\HDD Spindown" Name="Language" Type="string" Value="[APPLANGUAGE]" KeyPath="yes" />
       </Component>
     </ComponentGroup>
 
@@ -80,6 +88,20 @@
     <InstallExecuteSequence>
       <Custom Action="PreUninstallCheck" Before="StopServices" Condition="REMOVE~=&quot;ALL&quot;" />
     </InstallExecuteSequence>
+
+    <!-- Installer UI: welcome + license, progress, finish with "launch app" -->
+    <ui:WixUI Id="WixUI_Minimal" />
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    <WixVariable Id="WixUIBannerBmp" Value="banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="dialog.bmp" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.LaunchApp)" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <SetProperty Id="WixShellExecTarget" Value="[AppDir]HDD Spindown.exe" After="CostFinalize" Sequence="ui" />
+    <CustomAction Id="LaunchApplication" BinaryRef="Wix4UtilCA_X64" DllEntry="WixShellExec" Impersonate="yes" />
+    <UI>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
+    </UI>
 
     <Feature Id="Main" Title="HDD Spindown" Level="1">
       <ComponentGroupRef Id="ServiceFiles" />

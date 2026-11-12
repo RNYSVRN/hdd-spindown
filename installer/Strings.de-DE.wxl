@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="de-DE" Codepage="1252" Language="1031" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="Language" Value="1031" />
+  <String Id="Description" Value="HDD Spindown – Windows-Dienst und Oberfläche" />
+  <String Id="DowngradeError" Value="Eine neuere Version von HDD Spindown ist bereits installiert." />
+  <String Id="LaunchCondition" Value="HDD Spindown benötigt Windows 10 oder 11 (64 Bit)." />
+  <String Id="ArpComments" Value="Sperrt interne SATA-Daten-HDDs, blendet sie aus und fordert Standby an. Recovery: Service\HddSpindown.Recovery.exe" />
+  <String Id="ServiceDescription" Value="Hält Volume-Sperren pausierter SATA-HDDs und stellt Laufwerksbuchstaben nach Absturz, Neustart oder Energiesparmodus wieder her." />
+  <String Id="ShortcutDescription" Value="SATA-HDDs pausieren und freigeben" />
+  <String Id="LaunchApp" Value="HDD Spindown jetzt starten" />
+</WixLocalization>
