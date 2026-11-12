@@ -21,6 +21,9 @@ namespace HddSpindown.App {
    AppDomain.CurrentDomain.UnhandledException+=(s,e)=>Trace("AppDomain: "+e.ExceptionObject);
    // Follows the Windows app mode; --light/--dark only for visual checks of the preview.
    var args=Environment.GetCommandLineArgs();
+   // --lang de|en: language for this run only (not saved).
+   int li=Array.IndexOf(args,"--lang");
+   if(li>=0&&li+1<args.Length) { var l=HddSpindown.Core.L.Parse(args[li+1]); if(l.HasValue) HddSpindown.Core.L.Default=l.Value; }
    if(args.Contains("--light")) RequestedTheme=ApplicationTheme.Light;
    else if(args.Contains("--dark")) RequestedTheme=ApplicationTheme.Dark;
   }

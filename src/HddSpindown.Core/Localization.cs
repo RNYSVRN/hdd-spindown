@@ -48,7 +48,7 @@ namespace HddSpindown.Core {
   public static string T(string german) {
    if(german==null) return null;
    if(Current==Lang.De) return german;
-   string en; return En.TryGetValue(german,out en)?en:german;
+   string en; return En.TryGetValue(german,out en)||EnApp.TryGetValue(german,out en)?en:german;
   }
   public static string F(string german,params object[] args) { return String.Format(CultureInfo.CurrentCulture,T(german),args); }
 

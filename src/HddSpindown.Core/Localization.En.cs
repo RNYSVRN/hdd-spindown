@@ -186,7 +186,7 @@ namespace HddSpindown.Core {
    ["Beenden: laufender Vorgang reagiert nicht. Wiederherstellung beim nächsten Start."]="Stop: running operation does not respond. Recovery at next start.",
    ["Beenden: Buchstaben wiederhergestellt. Offen: {0}"]="Stop: drive letters restored. Open: {0}",
    ["Beim Beenden offen Tx {0}: {1}"]="Open at stop Tx {0}: {1}",
-   ["Beenden"]="Stop",
+   ["Beenden des Dienstes"]="Service stop",
    ["Ressourcen beim Beenden"]="Resources at stop",
    ["Dienst-Wiederanlauf nicht konfiguriert: SCM nicht erreichbar."]="Service restart not configured: SCM not reachable.",
    ["Dienst-Wiederanlauf nicht konfiguriert: Dienst nicht gefunden."]="Service restart not configured: service not found.",

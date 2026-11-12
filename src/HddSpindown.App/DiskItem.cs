@@ -10,6 +10,7 @@ namespace HddSpindown.App {
  public enum DiskAction { None, Sleep, Release }
 
  // View model for one HDD card. Updated in place to avoid flicker on refresh.
+ // Texts come from the language catalog; service texts may contain tokens (L.Expand).
  public sealed class DiskItem : INotifyPropertyChanged {
   readonly Action<DiskItem> invoke;
   public DiskItem(string key,Action<DiskItem> onInvoke) { Key=key; invoke=onInvoke; }
@@ -20,7 +21,7 @@ namespace HddSpindown.App {
   public string[] Letters {get;private set;}
   public bool IsPaused {get;private set;}
 
-  string title,model,modelTip,stateText,access,explorer,hardware,hardwareTip,actionText,actionTip,actionGlyph,note;
+  string title,model,modelTip,stateText,access,explorer,hardware,hardwareTip,actionText,actionTip,actionGlyph,note,labelAccess;
   Brush stateBrush,iconBrush,noteBrush; Style actionStyle; bool actionEnabled,showFacts=true;
   void Set<T>(ref T field,T value,[CallerMemberName] string name=null) {
    if(Equals(field,value)) return; field=value; PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(name));
@@ -31,6 +32,7 @@ namespace HddSpindown.App {
   public string Model { get=>model; private set=>Set(ref model,value); }
   public string ModelTip { get=>modelTip; private set=>Set(ref modelTip,value); }
   public string StateText { get=>stateText; private set=>Set(ref stateText,value); }
+  public string LabelAccess { get=>labelAccess; private set=>Set(ref labelAccess,value); }
   public string AccessText { get=>access; private set=>Set(ref access,value); }
   public string ExplorerText { get=>explorer; private set=>Set(ref explorer,value); }
   public string HardwareText { get=>hardware; private set=>Set(ref hardware,value); }
@@ -53,7 +55,7 @@ namespace HddSpindown.App {
   static Style StyleRes(string key) { return (Style)Application.Current.Resources[key]; }
   static string Local(string utc) {
    DateTime t; if(utc!=null&&DateTime.TryParse(utc,null,System.Globalization.DateTimeStyles.RoundtripKind,out t)) {
-    var local=t.ToLocalTime(); return local.Date==DateTime.Today?local.ToString("HH:mm"):local.ToString("dd.MM. HH:mm");
+    var local=t.ToLocalTime(); return local.Date==DateTime.Today?local.ToString("HH:mm"):local.ToString(L.Current==Lang.En?"MM/dd HH:mm":"dd.MM. HH:mm");
    }
    return null;
   }
@@ -61,12 +63,13 @@ namespace HddSpindown.App {
   public void Update(DeviceView v,bool busy,bool serviceReady,bool suspended) {
    var d=v.Disk; var op=v.Operation;
    DeviceId=d.DeviceId; IsPaused=op!=null;
+   LabelAccess=L.T("Zugriff");
    Letters=(op!=null&&op.Letters!=null&&op.Letters.Length>0?op.Letters:d.Letters)??new string[0];
-   string letters=Letters.Length==0?"Ohne Laufwerksbuchstaben":String.Join("  ",Letters.Select(l=>l+":"));
+   string letters=Letters.Length==0?L.T("Ohne Laufwerksbuchstaben"):String.Join("  ",Letters.Select(l=>l+":"));
    string size=d.Capacity>0?(d.Capacity/1e12).ToString(d.Capacity>=1e13?"0":"0.#")+" TB":null;
    Title=size==null?letters:letters+"  ·  "+size;
-   Model=d.Model??"Unbekanntes Modell";
-   ModelTip=(d.Model??"")+"\nSeriennummer: "+(d.Serial??"–")+"\nFirmware: "+(d.Firmware??"–")+(v.Present?"\nDatenträger "+d.Number:"");
+   Model=L.Expand(d.Model)??L.T("Unbekanntes Modell");
+   ModelTip=Model+"\n"+L.T("Seriennummer")+": "+(String.IsNullOrEmpty(d.Serial)?"–":d.Serial)+"\nFirmware: "+(d.Firmware??"–")+(v.Present?"\n"+L.F("Datenträger {0}",d.Number):"");
 
    var success=Res("SystemFillColorSuccessBrush"); var caution=Res("SystemFillColorCautionBrush");
    var critical=Res("SystemFillColorCriticalBrush"); var neutral=Res("TextFillColorTertiaryBrush");
@@ -74,31 +77,31 @@ namespace HddSpindown.App {
 
    string noteText=null; Brush noteColor=secondary;
    if(op==null) {
-    AccessText="Freigegeben"; ExplorerText=d.Letters!=null&&d.Letters.Length>0?"Sichtbar":"Keine Buchstaben";
-    HardwareText="Nicht überwacht"; HardwareTip="Der Motorzustand wird nicht abgefragt, um die HDD nicht aufzuwecken.";
+    AccessText=L.T("Freigegeben"); ExplorerText=d.Letters!=null&&d.Letters.Length>0?L.T("Sichtbar"):L.T("Keine Buchstaben");
+    HardwareText=L.T("Nicht überwacht"); HardwareTip=L.T("Der Motorzustand wird nicht abgefragt, um die HDD nicht aufzuwecken.");
     if(d.Eligible) {
-     StateText=v.PolicyBlock==null?"Verfügbar":"Verfügbar · Schonzeit läuft"; StateBrush=v.PolicyBlock==null?success:caution; IconBrush=secondary;
-     if(v.PolicyBlock!=null) { noteText=v.PolicyBlock; noteColor=caution; }
+     StateText=v.PolicyBlock==null?L.T("Verfügbar"):L.T("Verfügbar · Schonzeit läuft"); StateBrush=v.PolicyBlock==null?success:caution; IconBrush=secondary;
+     if(v.PolicyBlock!=null) { noteText=L.Expand(v.PolicyBlock); noteColor=caution; }
      Action=DiskAction.Sleep;
     } else {
-     StateText="Nicht zugelassen"; StateBrush=neutral; IconBrush=neutral; noteText=d.Reason; Action=DiskAction.None;
+     StateText=L.T("Nicht zugelassen"); StateBrush=neutral; IconBrush=neutral; noteText=L.Expand(d.Reason); Action=DiskAction.None;
     }
    } else {
     bool recovery=op.Phase==Phase.RecoveryRequired;
-    AccessText=op.Access==AccessState.Locked?"Volumes gesperrt":op.Access==AccessState.Released?"Freigegeben":"Sperrstatus unklar";
+    AccessText=op.Access==AccessState.Locked?L.T("Volumes gesperrt"):op.Access==AccessState.Released?L.T("Freigegeben"):L.T("Sperrstatus unklar");
     bool missing=op.LettersMissing!=null&&op.LettersMissing.Length>0;
-    ExplorerText=recovery?(missing?"Wiederherstellung offen":"Prüfung offen"):missing?"Ausgeblendet":"Sichtbar";
+    ExplorerText=recovery?(missing?L.T("Wiederherstellung offen"):L.T("Prüfung offen")):missing?L.T("Ausgeblendet"):L.T("Sichtbar");
     string when=Local(op.StandbyUtc);
-    HardwareText=op.Hardware==HardwareState.StandbyRequested?"Standby angefordert":"Unbekannt";
-    HardwareTip=op.Hardware==HardwareState.StandbyRequested?"Die HDD hat den Standby-Befehl bestätigt. Ob der Motor steht, wird nicht gemessen.":"Nach Neustart oder Energiesparmodus ist der Motorzustand unbekannt.";
-    if(!v.Present) { StateText="Nicht angeschlossen · Vorgang offen"; StateBrush=critical; IconBrush=neutral; noteText="Die HDD fehlt. Nach dem Anschließen versucht der Dienst die Wiederherstellung automatisch."; noteColor=critical; }
-    else if(recovery) { StateText="Wiederherstellung offen"; StateBrush=critical; IconBrush=critical; noteText=FirstLine(op.Error)??"Bitte „Freigeben“ erneut versuchen."; noteColor=critical; }
-    else { StateText=when!=null?"Pausiert seit "+when:"Pausiert"; StateBrush=accent; IconBrush=accent; }
+    HardwareText=op.Hardware==HardwareState.StandbyRequested?L.T("Standby angefordert"):L.T("Unbekannt");
+    HardwareTip=op.Hardware==HardwareState.StandbyRequested?L.T("Die HDD hat den Standby-Befehl bestätigt. Ob der Motor steht, wird nicht gemessen."):L.T("Nach Neustart oder Energiesparmodus ist der Motorzustand unbekannt.");
+    if(!v.Present) { StateText=L.T("Nicht angeschlossen · Vorgang offen"); StateBrush=critical; IconBrush=neutral; noteText=L.T("Die HDD fehlt. Nach dem Anschließen versucht der Dienst die Wiederherstellung automatisch."); noteColor=critical; }
+    else if(recovery) { StateText=L.T("Wiederherstellung offen"); StateBrush=critical; IconBrush=critical; noteText=L.Expand(FirstLine(op.Error))??L.T("Bitte „Freigeben“ erneut versuchen."); noteColor=critical; }
+    else { StateText=when!=null?L.F("Pausiert seit {0}",when):L.T("Pausiert"); StateBrush=accent; IconBrush=accent; }
     Action=DiskAction.Release;
    }
    Note=noteText; NoteBrush=noteColor;
-   if(Action==DiskAction.Release) { ActionText="Freigeben"; ActionGlyph=""; ActionStyle=StyleRes("DefaultButtonStyle"); ActionTip="Sperren lösen und dieselben Laufwerksbuchstaben wiederherstellen."; }
-   else { ActionText="Schlafen"; ActionGlyph=""; ActionStyle=StyleRes("AccentButtonStyle"); ActionTip=Action==DiskAction.None?(d.Reason??"Nicht zugelassen."):"Volumes sperren, aus „Dieser PC“ entfernen und Standby anfordern. Dateien auf der HDD müssen geschlossen sein."; }
+   if(Action==DiskAction.Release) { ActionText=L.T("Freigeben"); ActionGlyph=""; ActionStyle=StyleRes("DefaultButtonStyle"); ActionTip=L.T("Sperren lösen und dieselben Laufwerksbuchstaben wiederherstellen."); }
+   else { ActionText=L.T("Schlafen"); ActionGlyph=""; ActionStyle=StyleRes("AccentButtonStyle"); ActionTip=Action==DiskAction.None?(L.Expand(d.Reason)??L.T("Nicht zugelassen.")):L.T("Volumes sperren, aus „Dieser PC“ entfernen und Standby anfordern. Dateien auf der HDD müssen geschlossen sein."); }
    ActionEnabled=serviceReady&&!busy&&Action!=DiskAction.None&&!(Action==DiskAction.Sleep&&(suspended||v.PolicyBlock!=null))&&!(Action==DiskAction.Release&&!v.Present);
   }
   static string FirstLine(string s) {

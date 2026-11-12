@@ -239,7 +239,7 @@ namespace HddSpindown.Service {
      Log.Info(L.F("Beenden: Buchstaben wiederhergestellt. Offen: {0}",failures.Length));
      foreach(var f in failures) Log.Warn(L.F("Beim Beenden offen Tx {0}: {1}",f.RequestId,f.OriginalError.Message));
     }
-   } catch(Exception ex) { Log.Error(L.T("Beenden"),ex); }
+   } catch(Exception ex) { Log.Error(L.T("Beenden des Dienstes"),ex); }
    finally { op.Release(); }
   }
   public void Dispose() {
