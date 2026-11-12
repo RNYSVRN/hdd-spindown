@@ -3,13 +3,23 @@
 **Put internal SATA data HDDs to sleep on Windows 10/11 – safely, and keep them asleep.**
 [Deutsche Version](README.de.md)
 
+<a href='https://ko-fi.com/D3U62AJLQD' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi3.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+
 HDD Spindown locks all volumes of a selected HDD, removes its drive letters from *This PC* and sends ATA STANDBY IMMEDIATE. While the drive is paused, Explorer, indexers and ordinary programs cannot touch it, so it is not woken up again every few minutes. **Release** gives every HDD exactly the same drive letters back.
 
 A **Windows service** holds the locks. You can close the window, sign out or exit the app – paused HDDs stay paused. After a service crash, a restart or a power failure the service restores the original drive letters at the next start, based on a write-ahead journal. Drive letters that are in use are never overwritten.
 
-![HDD Spindown](docs/screenshot.png)
+![HDD Spindown – main window](docs/screenshot.png)
 
 > **Status:** 1.1.0 release candidate. The safety core is tested in simulation and against the real Windows storage stack with disposable VHDs. Hardware qualification on many HDD models and a long-term pilot are still pending – see [Limitations](#limitations).
+
+## Screenshots
+
+| Diagnostics | Built-in help |
+|---|---|
+| ![Diagnostics](docs/diagnostics.png) | ![Built-in help](docs/help.png) |
+
+<sub>Screenshots from the preview mode (HDD Spindown.exe --demo) with simulated drives.</sub>
 
 ## Features
 
@@ -90,6 +100,12 @@ Translations: German source text is the key; English lives in `src/HddSpindown.C
 - **Not a substitute for a backup.** No guarantees about drive lifetime.
 
 Test details: [docs/TEST-REPORT.md](docs/TEST-REPORT.md) (German). Changes: [CHANGELOG.md](CHANGELOG.md).
+
+## Support
+
+If HDD Spindown is useful to you, you can support its development:
+
+<a href='https://ko-fi.com/D3U62AJLQD' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi3.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 
 ## License
 

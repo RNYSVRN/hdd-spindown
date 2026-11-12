@@ -23,6 +23,25 @@ namespace HddSpindown.App {
    disks[1].Op=new Status {RequestId=Guid.NewGuid().ToString("D"),DeviceId=disks[1].Info.DeviceId,Letters=new[]{"E"},LettersMissing=new[]{"E"},Phase=Phase.Paused,Access=AccessState.Locked,Hardware=HardwareState.StandbyRequested,StandbyUtc=DateTime.UtcNow.AddMinutes(-42).ToString("O")};
    disks[3].Block=L.Tok("Mindestlaufzeit nach Freigabe noch nicht erreicht. Erneut möglich in {0} min.",18);
   }
+  // Same layout as the service diagnostics, built from the simulated drives.
+  static string DemoDiagnostics() {
+   var sb=new System.Text.StringBuilder();
+   string yes=L.T("ja"), no=L.T("nein");
+   sb.AppendLine(L.T("Vorschau – keine Hardwareaktionen."));
+   sb.AppendLine(L.F("HDD Spindown Dienst {0} · Windows {1}",typeof(DemoTransport).Assembly.GetName().Version.ToString(3),"10.0.26100"));
+   sb.AppendLine(L.F("Bereit: {0} · Speicher bestätigt: {1} · Energiesparmodus: {2}",yes,yes,no));
+   sb.AppendLine(L.F("Letzte Erkennung (UTC): {0}",DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")));
+   sb.AppendLine(L.F("Mindestlaufzeit: {0} min · Standby-Limit/24 h: {1}",30,4));
+   foreach(var d in disks) {
+    sb.AppendLine();
+    string sn=d.Info.Serial.Length<=4?"****":"…"+d.Info.Serial.Substring(d.Info.Serial.Length-4);
+    sb.AppendLine(L.F("{0} · SN {1} · Nr. {2} · {3}",d.Info.Model,sn,d.Info.Number,L.T("angeschlossen")));
+    sb.AppendLine("  "+L.F("Buchstaben: {0} · zugelassen: {1}",String.Join(" ",d.Info.Letters),d.Info.Eligible?yes:no)+(d.Info.Reason!=null?" ("+L.Expand(d.Info.Reason)+")":""));
+    if(d.Op!=null) sb.AppendLine("  "+L.F("Vorgang {0}: {1} · Zugriff {2} · Hardware {3} · Standby {4}",d.Op.RequestId,d.Op.Phase,d.Op.Access,d.Op.Hardware,d.Op.StandbyUtc));
+    if(d.Op==null&&d.Info.Eligible&&d.Block!=null) sb.AppendLine("  "+L.F("Schonregel: {0}",L.Expand(d.Block)));
+   }
+   return sb.ToString();
+  }
   public static Response Send(Request r) {
    if(r.Op==Ops.Pause||r.Op==Ops.Release||r.Op==Ops.ReleaseAll||r.Op==Ops.Refresh) Thread.Sleep(r.Op==Ops.Refresh?400:900);
    using(L.Use(L.Parse(r.Language)))
@@ -35,8 +54,8 @@ namespace HddSpindown.App {
     }
     if(r.Op==Ops.Release&&d!=null) { d.Op=null; d.Block=L.Tok("Mindestlaufzeit nach Freigabe noch nicht erreicht. Erneut möglich in {0} min.",30); messages.Add(L.F("{0} wieder verfügbar.",String.Join(", ",d.Info.Letters.Select(l=>l+":")))); }
     if(r.Op==Ops.ReleaseAll) foreach(var x in disks.Where(x=>x.Op!=null)) { messages.Add(L.F("{0} wieder verfügbar.",String.Join(", ",x.Info.Letters.Select(l=>l+":")))); x.Op=null; }
-    return new Response {Ok=ok,Error=error,ErrorKind=kind,ServiceVersion="1.0 · "+L.T("Vorschau"),StoreHealthy=true,Messages=messages.ToArray(),
-     Text=L.T("Vorschau – keine Hardwareaktionen."),LastInventoryUtc=DateTime.UtcNow.ToString("O"),
+    return new Response {Ok=ok,Error=error,ErrorKind=kind,ServiceVersion=typeof(DemoTransport).Assembly.GetName().Version.ToString(3)+" · "+L.T("Vorschau"),StoreHealthy=true,Messages=messages.ToArray(),
+     Text=DemoDiagnostics(),LastInventoryUtc=DateTime.UtcNow.ToString("O"),
      Devices=disks.Select(x=>new DeviceView {Disk=x.Info,Operation=x.Op,PolicyBlock=x.Op==null&&x.Info.Eligible?x.Block:null,Present=true}).ToArray()};
    }
   }

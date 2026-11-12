@@ -2,6 +2,10 @@
 
 [English version](README.md)
 
+<a href='https://ko-fi.com/D3U62AJLQD' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi3.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+
+![HDD Spindown – Hauptfenster](docs/screenshot.png)
+
 Stand: 12. November 2026 · Version 1.1.0 (Release-Kandidat) · **Noch keine Produktivfreigabe:** Hardwarequalifikation und Pilotbetrieb stehen aus (siehe unten).
 
 HDD Spindown sperrt interne SATA-Daten-HDDs, entfernt ihre Laufwerksbuchstaben aus „Dieser PC“ und fordert Standby an. Ab 1.0 hält ein **Windows-Dienst** die Sperren. Die Oberfläche kann geschlossen werden, abstürzen oder der Benutzer kann sich abmelden – pausierte HDDs bleiben pausiert. Nach Dienstabsturz, Neustart oder Stromausfall stellt der Dienst beim nächsten Start die ursprüngliche Verfügbarkeit wieder her.
@@ -116,6 +120,12 @@ Ergebnis: `out\HDD-Spindown-<Version>-Setup.exe`, `out\HDD-Spindown-<Version>-x6
 - Unabhängige Prüfung der Gerätezugriffe und der Recovery-Logik.
 
 Das Tool ersetzt kein Backup, verhindert keine mechanischen Defekte und sagt keine Lebensdauer zu.
+
+## Unterstützen
+
+Wenn dir HDD Spindown hilft, kannst du die Weiterentwicklung unterstützen:
+
+<a href='https://ko-fi.com/D3U62AJLQD' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi3.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 
 ## Lizenz
 
