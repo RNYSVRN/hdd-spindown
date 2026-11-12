@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Package Name="HDD Spindown"
+           Manufacturer="HDD Spindown"
+           Version="1.0.0.0"
+           UpgradeCode="6B1E5D2A-3C47-4F0E-9B8A-2D5C7E91A410"
+           Scope="perMachine"
+           Language="1031"
+           Codepage="65001"
+           InstallerVersion="500">
+    <SummaryInformation Description="HDD Spindown – Windows-Dienst und Oberfläche" Manufacturer="HDD Spindown" />
+
+    <!-- Old version is removed first; its pre-uninstall check must pass (open transactions abort). -->
+    <MajorUpgrade Schedule="afterInstallInitialize"
+                  DowngradeErrorMessage="Eine neuere Version von HDD Spindown ist bereits installiert." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="AppIcon" SourceFile="$(AssetsDir)\HDD-Spindown.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPCOMMENTS" Value="Sperrt interne SATA-Daten-HDDs, blendet sie aus und fordert Standby an. Recovery: Service\HddSpindown.Recovery.exe" />
+
+    <Launch Condition="VersionNT64 AND VersionNT &gt;= 603" Message="HDD Spindown benötigt Windows 10 oder 11 (64 Bit)." />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="HDD Spindown">
+        <Directory Id="ServiceDir" Name="Service" />
+        <Directory Id="AppDir" Name="App" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <!-- Service binaries (service + recovery share one self-contained runtime) -->
+    <ComponentGroup Id="ServiceFiles" Directory="ServiceDir">
+      <Files Include="$(ServicePublish)\**">
+        <Exclude Files="$(ServicePublish)\HddSpindown.Service.exe" />
+        <Exclude Files="$(ServicePublish)\**\*.pdb" />
+      </Files>
+      <Component Id="ServiceExe" Guid="1C9F3B0E-58A2-4D11-8E3B-7A4C2F6D9E01">
+        <File Id="ServiceExeFile" Source="$(ServicePublish)\HddSpindown.Service.exe" KeyPath="yes" />
+        <ServiceInstall Id="SpindownService"
+                        Name="HddSpindown"
+                        DisplayName="HDD Spindown"
+                        Description="Hält Volume-Sperren pausierter SATA-HDDs und stellt Laufwerksbuchstaben nach Absturz, Neustart oder Energiesparmodus wieder her."
+                        Type="ownProcess"
+                        Start="auto"
+                        ErrorControl="normal"
+                        Account="LocalSystem"
+                        Vital="yes" />
+        <ServiceControl Id="SpindownServiceControl" Name="HddSpindown" Start="install" Stop="both" Remove="uninstall" Wait="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- WinUI 3 application (runs without administrator rights) -->
+    <ComponentGroup Id="AppFiles" Directory="AppDir">
+      <Files Include="$(AppPublish)\**">
+        <Exclude Files="$(AppPublish)\**\*.pdb" />
+      </Files>
+    </ComponentGroup>
+
+    <ComponentGroup Id="Shortcuts" Directory="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="7E2D4A61-0B9C-4F35-A8D7-3C1E5B92F604">
+        <Shortcut Id="AppShortcut" Name="HDD Spindown" Description="SATA-HDDs pausieren und freigeben"
+                  Target="[AppDir]HDD Spindown.exe" WorkingDirectory="AppDir" Icon="AppIcon" />
+        <RegistryValue Root="HKLM" Key="Software\HDD Spindown" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Uninstall/upgrade gate: all HDDs must be released and no transaction may be open. -->
+    <SetProperty Id="PreUninstallCheck" Value="&quot;[ServiceDir]HddSpindown.Recovery.exe&quot; preuninstall"
+                 Before="PreUninstallCheck" Sequence="execute" Condition="REMOVE~=&quot;ALL&quot;" />
+    <CustomAction Id="PreUninstallCheck" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec64"
+                  Execute="deferred" Impersonate="no" Return="check" />
+    <InstallExecuteSequence>
+      <Custom Action="PreUninstallCheck" Before="StopServices" Condition="REMOVE~=&quot;ALL&quot;" />
+    </InstallExecuteSequence>
+
+    <Feature Id="Main" Title="HDD Spindown" Level="1">
+      <ComponentGroupRef Id="ServiceFiles" />
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentGroupRef Id="Shortcuts" />
+    </Feature>
+  </Package>
+</Wix>

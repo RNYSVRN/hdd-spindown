@@ -1,0 +1,16 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+    <OutputName>HDD-Spindown-1.0.0-x64</OutputName>
+    <Platform>x64</Platform>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <PublishRoot Condition="'$(PublishRoot)'==''">..\out\publish</PublishRoot>
+    <DefineConstants>ServicePublish=$(PublishRoot)\Service;AppPublish=$(PublishRoot)\App;AssetsDir=..\assets</DefineConstants>
+    <SuppressValidation>false</SuppressValidation>
+    <!-- ICE03: Windows App SDK DLLs carry language ids MSI does not know (harmless).
+         ICE38/43/57: known false positives for a per-machine Start menu shortcut. -->
+    <SuppressIces>ICE03;ICE38;ICE43;ICE57</SuppressIces>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
+  </ItemGroup>
+</Project>
