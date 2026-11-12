@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>HddSpindown.Recovery</RootNamespace>
+    <AssemblyName>HddSpindown.Recovery</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\assets\HDD-Spindown.ico</ApplicationIcon>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\HddSpindown.Core\HddSpindown.Core.csproj" />
+    <ProjectReference Include="..\HddSpindown.Windows\HddSpindown.Windows.csproj" />
+  </ItemGroup>
+</Project>

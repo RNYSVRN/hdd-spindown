@@ -240,6 +240,25 @@ namespace HddSpindown.Core {
    return failures.ToArray();
   }
   public OperationException[] RecoverAll() { lock(gate) { Ready(); return RecoverAllInternal(); } }
+  // Retries only transactions this process does not hold (e.g. a disk that was
+  // missing at startup). Deliberately paused disks with live locks stay paused.
+  public OperationException[] RecoverOrphaned() {
+   lock(gate) {
+    Ready();
+    var failures=new List<OperationException>();
+    foreach(string id in store.Read().Transactions.Where(t=>t.Phase!=Phase.Completed&&!live.ContainsKey(t.RequestId)).Select(t=>t.RequestId).ToArray()) {
+     if(!store.Healthy)break;
+     try { var state=store.Read(); RecoverOne(state,state.Transactions.Single(t=>t.RequestId==id)); }
+     catch(Exception error) {
+      try { RecordRecoveryError(id,error); failures.Add(new OperationException(id,error,new Exception[0])); }
+      catch(OperationException combined) { failures.Add(combined); }
+     }
+    }
+    return failures.ToArray();
+   }
+  }
+  public bool HasOrphaned { get { lock(gate) { return store.Read().Transactions.Any(t=>t.Phase!=Phase.Completed&&!live.ContainsKey(t.RequestId)); } } }
+  public bool StoreHealthy { get { return store.Healthy; } }
   Status ToStatus(Transaction tx) {
    Live value; bool known=live.TryGetValue(tx.RequestId,out value);
    return new Status {
