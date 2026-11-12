@@ -42,6 +42,7 @@ namespace HddSpindown.App {
    timer=DispatcherQueue.CreateTimer(); timer.Interval=TimeSpan.FromSeconds(4); timer.Tick+=(s,e)=>_=Poll();
    timer.Start();
    LegacyMenuItem.IsEnabled=File.Exists(LegacyFile);
+   InitHelp();
    Activated+=FirstActivated;
    tray=new TrayIcon(Path.Combine(AppContext.BaseDirectory,"Assets","HDD-Spindown.ico")) {Activate=ShowFromTray,BuildMenu=BuildTrayMenu};
    // Closing the window only hides it; the service keeps the locks either way.
@@ -50,6 +51,37 @@ namespace HddSpindown.App {
   }
   [DllImport("user32.dll")] static extern uint GetDpiForWindow(IntPtr hwnd);
   [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr hwnd);
+
+  // ---------- built-in help ----------
+  static string RecoveryExe {
+   get {
+    string installed=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","Service","HddSpindown.Recovery.exe"));
+    return File.Exists(installed)?installed:@"C:\Program Files\HDD Spindown\Service\HddSpindown.Recovery.exe";
+   }
+  }
+  string RecoveryText() {
+   string exe="\""+RecoveryExe+"\"";
+   return "sc stop HddSpindown\n"+exe+" status\n"+exe+" recover\nsc start HddSpindown";
+  }
+  void InitHelp() {
+   RecoveryCommands.Text=RecoveryText();
+   HelpVersion.Text="HDD Spindown "+typeof(MainWindow).Assembly.GetName().Version.ToString(3)+" · Weitere Optionen des Recovery-Werkzeugs: „list“, „import-legacy“, „export“ (Diagnosebericht).";
+   var f1=new Microsoft.UI.Xaml.Input.KeyboardAccelerator {Key=global::Windows.System.VirtualKey.F1};
+   f1.Invoked+=(s,e)=> { e.Handled=true; ShowHelp(true); };
+   var esc=new Microsoft.UI.Xaml.Input.KeyboardAccelerator {Key=global::Windows.System.VirtualKey.Escape};
+   esc.Invoked+=(s,e)=> { if(HelpView.Visibility==Visibility.Visible) { e.Handled=true; ShowHelp(false); } };
+   Root.KeyboardAccelerators.Add(f1); Root.KeyboardAccelerators.Add(esc);
+   Root.KeyboardAcceleratorPlacementMode=Microsoft.UI.Xaml.Input.KeyboardAcceleratorPlacementMode.Hidden;
+  }
+  void ShowHelp(bool show) {
+   HelpView.Visibility=show?Visibility.Visible:Visibility.Collapsed;
+   MainView.Visibility=show?Visibility.Collapsed:Visibility.Visible;
+   if(show) { HelpScroll.ChangeView(null,0,null,true); HelpBack.Focus(FocusState.Programmatic); }
+   else RefreshButton.Focus(FocusState.Programmatic);
+  }
+  void Help_Click(object sender,RoutedEventArgs e) { ShowHelp(true); }
+  void HelpBack_Click(object sender,RoutedEventArgs e) { ShowHelp(false); }
+  void CopyRecovery_Click(object sender,RoutedEventArgs e) { var p=new DataPackage(); p.SetText(RecoveryText().Replace("\n","\r\n")); Clipboard.SetContent(p); }
 
   // ---------- notification area ----------
   readonly TrayIcon tray;

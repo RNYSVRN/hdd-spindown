@@ -24,7 +24,7 @@
             </StackPanel>
         </Grid>
 
-        <Grid Grid.Row="1" Padding="32,4,32,24" MaxWidth="1100" HorizontalAlignment="Stretch">
+        <Grid x:Name="MainView" Grid.Row="1" Padding="32,4,32,24" MaxWidth="1100" HorizontalAlignment="Stretch">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -67,6 +67,9 @@
                         <FontIcon Glyph="&#xE712;" FontSize="14" />
                         <Button.Flyout>
                             <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <MenuFlyoutItem Text="Hilfe" Click="Help_Click" KeyboardAcceleratorTextOverride="F1">
+                                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE897;" /></MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
                                 <MenuFlyoutItem Text="Diagnose anzeigen" Click="Diagnostics_Click">
                                     <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE9D9;" /></MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
@@ -171,6 +174,182 @@
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     <TextBlock Margin="2,16,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                Text="„Schlafen“ sperrt alle Volumes der HDD, entfernt ihre Laufwerksbuchstaben aus „Dieser PC“ und fordert Standby an. Die Sperren hält der Windows-Dienst – auch wenn dieses Fenster geschlossen ist. Der Motorzustand wird nicht gemessen; andere Programme oder Treiber können eine HDD trotzdem aufwecken. Kein Ersatz für ein Backup." />
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Built-in help (… → Hilfe or F1) -->
+        <Grid x:Name="HelpView" Grid.Row="1" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid Padding="32,4,32,12" MaxWidth="1100">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Button x:Name="HelpBack" Click="HelpBack_Click" Background="Transparent" BorderThickness="0" Width="40" Height="36" ToolTipService.ToolTip="Zurück (Esc)" AutomationProperties.Name="Zurück" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE72B;" FontSize="16" />
+                    </Button>
+                    <TextBlock Text="Hilfe" Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+            <ScrollViewer x:Name="HelpScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="12" Padding="32,0,44,32" MaxWidth="1100">
+
+                    <!-- What it does -->
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="20,16">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Was HDD Spindown macht" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <TextBlock TextWrapping="Wrap" Text="HDD Spindown legt interne SATA-Daten-HDDs gezielt schlafen, wenn du sie nicht brauchst. „Schlafen“ sperrt alle Volumes der HDD, entfernt ihre Laufwerksbuchstaben aus „Dieser PC“ und sendet den Befehl „Standby“. Solange die HDD pausiert ist, können normale Programme, Explorer und Indexdienste nicht auf sie zugreifen – sie wird also nicht ständig wieder aufgeweckt." />
+                            <TextBlock TextWrapping="Wrap" Text="Die Sperren hält ein Windows-Dienst. Du kannst dieses Fenster schließen, dich abmelden oder die App beenden: Pausierte HDDs bleiben pausiert, bis du sie freigibst. „Freigeben“ löst die Sperren und gibt jeder HDD genau dieselben Laufwerksbuchstaben zurück." />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Reading a card -->
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="20,16">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Die Anzeige einer HDD lesen" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <TextBlock TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Der Punkt am Laufwerkssymbol und die farbige Zeile unter dem Modell zeigen den Gesamtzustand:" />
+                            <Grid ColumnSpacing="12" RowSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="200" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                                </Grid.RowDefinitions>
+                                <Ellipse Width="10" Height="10" Fill="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="Verfügbar" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Grid.Column="2" TextWrapping="Wrap" Text="HDD ist normal nutzbar und kann schlafen gelegt werden." />
+                                <Ellipse Grid.Row="1" Width="10" Height="10" Fill="{ThemeResource SystemFillColorCautionBrush}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="Schonzeit läuft" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Grid.Row="1" Grid.Column="2" TextWrapping="Wrap" Text="HDD ist nutzbar, darf aber gerade nicht erneut schlafen (siehe Schonregeln). Die Restzeit steht darunter." />
+                                <Ellipse Grid.Row="2" Width="10" Height="10" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="Pausiert seit …" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Grid.Row="2" Grid.Column="2" TextWrapping="Wrap" Text="Volumes gesperrt, Buchstaben ausgeblendet, Standby angefordert." />
+                                <Ellipse Grid.Row="3" Width="10" Height="10" Fill="{ThemeResource SystemFillColorCriticalBrush}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="Wiederherstellung offen" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Grid.Row="3" Grid.Column="2" TextWrapping="Wrap" Text="Ein Buchstabe konnte nicht zurückgegeben werden (z. B. inzwischen belegt oder HDD fehlt). Der Grund steht an der Karte; nach Behebung „Freigeben“ erneut wählen." />
+                                <Ellipse Grid.Row="4" Width="10" Height="10" Fill="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="4" Grid.Column="1" Text="Nicht zugelassen" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Grid.Row="4" Grid.Column="2" TextWrapping="Wrap" Text="Die HDD erfüllt eine Voraussetzung nicht (siehe „Welche HDDs unterstützt werden“). Der Grund steht an der Karte." />
+                            </Grid>
+                            <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Rechts daneben stehen drei getrennte Angaben, weil sie unabhängig voneinander gelten:" />
+                            <Grid ColumnSpacing="12" RowSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="216" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                                <TextBlock Text="Zugriff" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Grid.Column="1" TextWrapping="Wrap" Text="„Freigegeben“: Dateien sind erreichbar. „Volumes gesperrt“: der Dienst hält die Sperre. „Sperrstatus unklar“: ein Vorgang ist offen, aber die Sperre ist nicht nachweisbar (z. B. nach einem Dienstneustart) – dann wird wiederhergestellt." />
+                                <TextBlock Grid.Row="1" Text="Explorer" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" Text="„Sichtbar“: Laufwerksbuchstaben vorhanden. „Ausgeblendet“: Buchstaben entfernt, die HDD fehlt in „Dieser PC“. „Wiederherstellung offen“: mindestens ein Buchstabe ist noch nicht zurück." />
+                                <TextBlock Grid.Row="2" Text="Hardware" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" Text="„Nicht überwacht“: Im Normalbetrieb wird der Motor nicht abgefragt, damit die HDD nicht aufwacht. „Standby angefordert“: die HDD hat den Befehl bestätigt – ob der Motor wirklich steht, wird nicht gemessen. „Unbekannt“: nach Neustart oder Energiesparmodus ist der Zustand nicht bekannt." />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Operation -->
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="20,16">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Bedienung" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <Grid ColumnSpacing="12" RowSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="216" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                                <TextBlock Text="Schlafen" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Grid.Column="1" TextWrapping="Wrap" Text="Vorher alle Dateien, Explorer-Fenster und Programme auf dieser HDD schließen. Ist noch etwas geöffnet, wird nichts verändert und die Meldung nennt den nächsten Schritt – es wird nie etwas zwangsweise geschlossen." />
+                                <TextBlock Grid.Row="1" Text="Freigeben" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" Text="Gibt die HDD sofort wieder frei. Beim nächsten Zugriff läuft sie an; das dauert einige Sekunden." />
+                                <TextBlock Grid.Row="2" Text="Alle freigeben" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" Text="Gibt alle pausierten HDDs nacheinander mit einigen Sekunden Abstand frei, damit sie nicht gleichzeitig anlaufen." />
+                                <TextBlock Grid.Row="3" Text="Neu einlesen" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" TextWrapping="Wrap" Text="Erkennt neu angeschlossene oder geänderte HDDs. Pausierte HDDs werden dabei nicht abgefragt." />
+                                <TextBlock Grid.Row="4" Text="Infobereich" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Grid.Row="4" Grid.Column="1" TextWrapping="Wrap" Text="Das X schließt nur das Fenster; das Symbol bleibt im Infobereich (ggf. unter dem Pfeil ^). Linksklick öffnet das Fenster, Rechtsklick bietet Schlafen/Freigeben je HDD. Bei der Anmeldung startet nur das Symbol (abschaltbar unter Einstellungen → Apps → Autostart)." />
+                                <TextBlock Grid.Row="5" Text="Beenden" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Grid.Row="5" Grid.Column="1" TextWrapping="Wrap" Text="Beendet nur die Oberfläche. Pausierte HDDs bleiben pausiert, weil der Dienst die Sperren hält." />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Policy -->
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="20,16">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Schonregeln" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <TextBlock TextWrapping="Wrap" Text="Jedes Anlaufen belastet Motor und Mechanik. Schnelle Wechsel zwischen Schlafen und Anlaufen schaden einer HDD mehr, als kurze Pausen nutzen. Deshalb gilt je HDD:" />
+                            <TextBlock TextWrapping="Wrap" Text="•  Nach einer Freigabe muss die HDD mindestens 30 Minuten laufen, bevor sie wieder schlafen darf („Schonzeit läuft“)." />
+                            <TextBlock TextWrapping="Wrap" Text="•  Höchstens 4 Standby-Anforderungen innerhalb von 24 Stunden." />
+                            <TextBlock TextWrapping="Wrap" Text="•  Freigeben ist immer sofort möglich." />
+                            <TextBlock TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Das sind vorsichtige Richtwerte, keine Herstellergarantie. Manche Hersteller sehen für ihre Modelle eigene Werte vor." />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Events -->
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="20,16">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Was in besonderen Situationen passiert" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <Grid ColumnSpacing="12" RowSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="216" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                                <TextBlock Text="Neustart / Herunterfahren" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Column="1" TextWrapping="Wrap" Text="Alle Laufwerksbuchstaben werden wiederhergestellt. Nach dem Start sind alle HDDs verfügbar; ein früherer Schlafwunsch wird nicht automatisch wiederholt." />
+                                <TextBlock Grid.Row="1" Text="Absturz / Stromausfall" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" Text="Der Dienst merkt sich jeden Schritt, bevor er ihn ausführt. Beim nächsten Start gibt er alle Buchstaben anhand dieser Aufzeichnung zurück – belegte Buchstaben werden nie überschrieben." />
+                                <TextBlock Grid.Row="2" Text="Energiesparmodus" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" Text="Während des Übergangs sind keine neuen Aktionen möglich. Nach dem Aufwachen bleiben pausierte HDDs gesperrt, wenn die Sperre noch nachweisbar ist; der Hardwarezustand ist dann „Unbekannt“. Windows lässt beim Aufwachen oft alle HDDs kurz anlaufen." />
+                                <TextBlock Grid.Row="3" Text="HDD fehlt" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" TextWrapping="Wrap" Text="Ihr Vorgang bleibt offen und wird automatisch abgeschlossen, sobald sie wieder angeschlossen ist. Andere HDDs bleiben bedienbar." />
+                                <TextBlock Grid.Row="4" Text="HDD wacht trotzdem auf" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="4" Grid.Column="1" TextWrapping="Wrap" Text="Programme mit direktem Gerätezugriff (z. B. SMART-Tools, Controller-Software) können eine pausierte HDD aufwecken. Die Sperre bleibt trotzdem bestehen; Dateien bleiben bis zur Freigabe unzugänglich." />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Supported -->
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="20,16">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Welche HDDs unterstützt werden" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <TextBlock TextWrapping="Wrap" Text="Interne, direkt per SATA angeschlossene Festplatten mit GPT-Partitionstabelle und einfachen, fehlerfreien NTFS-Datenvolumes." />
+                            <TextBlock TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Nicht unterstützt: SSDs und NVMe (werden ausgeblendet), USB-Laufwerke, RAID und Storage Spaces, dynamische Datenträger, MBR-Datenträger, Datenträger mit Windows, Programmen oder Auslagerungsdatei, BitLocker-verschlüsselte Volumes und Volumes mit gesetztem Fehlerkennzeichen (dann zuerst mit „chkdsk“ prüfen)." />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Recovery -->
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="20,16">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Notfall und Recovery" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <TextBlock TextWrapping="Wrap" Text="Fehlt ein Laufwerksbuchstabe dauerhaft oder reagiert die App nicht, hilft das Recovery-Werkzeug – auch ohne diese Oberfläche. Eingabeaufforderung als Administrator öffnen und eingeben:" />
+                            <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="12,10">
+                                <TextBlock x:Name="RecoveryCommands" IsTextSelectionEnabled="True" FontFamily="Cascadia Mono, Consolas" FontSize="13" TextWrapping="Wrap" />
+                            </Border>
+                            <Button Click="CopyRecovery_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE8C8;" FontSize="14" />
+                                    <TextBlock Text="Befehle kopieren" />
+                                </StackPanel>
+                            </Button>
+                            <TextBlock TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="„sc stop“ beendet den Dienst; dabei gibt er alle HDDs frei. „recover“ arbeitet nur bei gestopptem Dienst und nutzt dieselben Prüfungen: keine geratenen Zuordnungen, keine Ersatzbuchstaben, keine Reparaturen. Mit „sc start HddSpindown“ oder einem Neustart läuft der Dienst wieder." />
+                            <TextBlock TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Hinweise zur Fehlersuche: „…“ → „Diagnose anzeigen“ (mit Kopieren) sowie die Ereignisanzeige unter Windows-Protokolle → Anwendung, Quelle „HDD Spindown“." />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Limits -->
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="20,16">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Wichtig zu wissen" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <TextBlock TextWrapping="Wrap" Text="HDD Spindown ersetzt kein Backup und schützt nicht vor Stromausfall, mechanischen Defekten oder Schadsoftware mit Administratorrechten. Eine bestimmte Lebensdauer wird nicht zugesagt." />
+                            <TextBlock TextWrapping="Wrap" Text="Steuern dürfen nur Konten der lokalen Administratorengruppe. Die App selbst läuft ohne erhöhte Rechte." />
+                            <TextBlock x:Name="HelpVersion" Margin="0,8,0,0" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
         </Grid>

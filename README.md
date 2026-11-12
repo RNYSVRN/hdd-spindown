@@ -40,6 +40,7 @@ Jede HDD erscheint als Karte mit drei getrennten Angaben:
 - **Freigeben**: löst die Sperren und ordnet dieselben Buchstaben denselben Volumes zu. Belegte Buchstaben werden nie überschrieben.
 - **Alle freigeben**: nacheinander mit 5 s Abstand, damit nicht alle HDDs gleichzeitig anlaufen.
 - **Schonregeln** (Entwurfswerte aus Konzept Abschnitt 9, keine Herstellergarantie): mindestens 30 Minuten Laufzeit nach einer Freigabe, höchstens 4 Standby-Anforderungen je HDD in 24 Stunden. Die Restzeit wird an der Karte angezeigt.
+- **Hilfe** (Menü „…“ oder F1): eingebaute Anleitung zu Funktionen, Statusanzeigen, Schonregeln, Sonderfällen, unterstützten HDDs und Recovery (mit kopierbaren Befehlen).
 - **Diagnose** (Menü „…“): Zustand des Dienstes, aller HDDs und offener Vorgänge; Seriennummern gekürzt.
 
 **Infobereich (Tray):** Die App startet bei der Anmeldung nur als Symbol im Infobereich (`--tray`, eingerichtet vom Installer; abschaltbar unter Einstellungen → Apps → Autostart). Linksklick öffnet das Fenster. Der Rechtsklick zeigt jede HDD mit Status und „Schlafen“/„Freigeben“, außerdem „Alle freigeben“ und „Beenden“. Das X im Fenster legt die App in den Infobereich. „Beenden“ schließt nur die Oberfläche – pausierte HDDs bleiben pausiert, weil der Dienst die Sperren hält. Ergebnisse von Aktionen aus dem Menü und Störungen (Dienst nicht erreichbar, Wiederherstellung offen) erscheinen als Windows-Benachrichtigung; normale Ruhephasen erzeugen keine Meldungen.
